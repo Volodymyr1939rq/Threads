@@ -1,0 +1,15 @@
+# nest-course/.gitignore
+
+# Azurite (твоя головна проблема зараз)
+__blobstorage__
+__queuestorage__
+__azurite_db*__.json
+
+# IDE & OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+
+
+node_modules

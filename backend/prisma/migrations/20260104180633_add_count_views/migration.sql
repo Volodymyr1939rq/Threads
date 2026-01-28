@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Comment" ADD COLUMN     "views" INTEGER NOT NULL DEFAULT 0;
+
+-- AlterTable
+ALTER TABLE "Post" ADD COLUMN     "views" INTEGER NOT NULL DEFAULT 0;
