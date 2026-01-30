@@ -19,6 +19,7 @@ import { useReplyModal } from "../context/ReplyModalContext";
 import { usePostContext } from "../context/PostContext";
 import { PostOptionsModal } from "./PostOptionalMenu";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import RepostMenu from "./RepostMenu";
 
 
 interface Statistic {
@@ -89,6 +90,7 @@ const Post = ({
   const [postIsDeleted, setPostIsDeleted] = useState(false);
   const [isReposted,setIsReposted]=useState(isRepostByMe)
   const [repostCount,setRepostCount]=useState(propRepostCount ?? stats?.reposts ?? 0)
+  const [showMenu,setShowMenu]=useState(false)
   const navigate = useNavigate();
   const { openReplyModal } = useReplyModal();
   
@@ -111,38 +113,34 @@ const Post = ({
     : (storedState?.commentsCount || 0);
 
   const handleFollowClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); 
-        
+    e.stopPropagation();   
   };
   
-  const handleRepost=async()=>{
-     const token=Cookies.get('token')
-     if(!token){
-      console.error('token not found')
-     }
-     const prevIsReposted=isReposted
-     const prevCount=repostCount
-     setIsReposted(!prevIsReposted)
-     setRepostCount(prevIsReposted ? prevCount-1:prevCount+1)
-     try {
-      const res=await fetch(`${API_URL}/post/${id}/repost`,{
-        method:'POST',
-        headers:{'Authorization':`Bearer ${token}`,
-      'Content-Type':'application/json'}
-      })
-      if(!res.ok){
-        throw new Error('Failed to repost')
-      }
-      setTimeout(async()=>{
-        await queryClient.invalidateQueries({queryKey:['posts']})
-        await queryClient.invalidateQueries({queryKey:['reposts']})
-      },500)
-     } catch (error) {
-      console.error(error)
-      setIsReposted(prevIsReposted)
-      setRepostCount(prevCount)
-     }
-  }
+  // const handleRepost=async()=>{
+  //    const token=Cookies.get('token')
+  //    if(!token){
+  //     console.error('token not found')
+  //    }
+  //    const prevIsReposted=isReposted
+  //    const prevCount=repostCount
+  //    setIsReposted(!prevIsReposted)
+  //    setRepostCount(prevIsReposted ? prevCount-1:prevCount+1)
+  //    try {
+  //     const res=await fetch(`${API_URL}/post/${id}/repost`,{
+  //       method:'POST',
+  //       headers:{'Authorization':`Bearer ${token}`,
+  //     'Content-Type':'application/json'}
+  //     })
+  //     if(!res.ok){
+  //       throw new Error('Failed to repost')
+  //     }
+      
+  //    } catch (error) {
+  //     console.error(error)
+  //     setIsReposted(prevIsReposted)
+  //     setRepostCount(prevCount)
+  //    }
+  // }
   const deleteMutation = useMutation({
     mutationFn: async () => {
       const token = Cookies.get("token");
@@ -369,7 +367,7 @@ const Post = ({
             )}
           </button>
           <button 
-          onClick={(e)=>{e.stopPropagation(); handleRepost()}}
+          onClick={(e)=>{e.stopPropagation(); setShowMenu(!showMenu)}}
           className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition"
           >
           {repostCount>0 && (
@@ -538,8 +536,9 @@ const Post = ({
                 <span className="text-sm text-neutral-500">{commentsCount}</span>
               )}
             </button>
+            <div className="relative">
             <button 
-            onClick={(e)=>{e.stopPropagation();handleRepost()}}
+            onClick={(e)=>{e.stopPropagation();setShowMenu(!showMenu)}}
             className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition">
               <IoRepeatOutline
                 size={20}
@@ -550,6 +549,19 @@ const Post = ({
                 <span className="text-sm text-neutral-500">{repostCount}</span>
               )}
             </button>
+             {showMenu && (
+        <RepostMenu 
+        postId={id}
+        isReposted={isReposted}
+        currentCount={repostCount}
+        onClose={()=>setShowMenu(false)}
+        updateState={(newState,newCount)=>{
+          setIsReposted(newState)
+          setRepostCount(newCount)
+        }}
+        />
+      )}
+    </div>
             <button className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition">
               <IoPaperPlaneOutline
                 size={20}
@@ -566,8 +578,7 @@ const Post = ({
         onDelete={handleDeletePost}
         postId={id}
       />
-
-    </div>
+      </div>
   );
 };
 
