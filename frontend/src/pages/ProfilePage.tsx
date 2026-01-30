@@ -13,6 +13,7 @@ import FollowersModal from "../components/FollowersModal";
 import { useNavigate, useParams } from "react-router-dom";
 import { HiUserAdd } from "react-icons/hi";
 import { useQuery } from "@tanstack/react-query";
+
 interface UserProfileData {
   id: string;
   name: string;
@@ -41,36 +42,63 @@ const Profile = () => {
   const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
   const [expandedImage, setExpandedImage] = useState(false);
   const [openFollowersModal, setOpenFollowersModal] = useState(false);
-  const navigate=useNavigate()
+  const navigate = useNavigate();
   const { id } = useParams();
 
   const replies: any[] = [];
   const media: any[] = [];
-  const reposts: any[] = [];
-
+  
+  
   const isOwnProfile = !id || id === globalUser?.id;
   const targetUserId = id || globalUser?.id;
-  
-  const fetchUserPosts=async()=>{
-    const token=Cookies.get('token')
-    const endpoint=isOwnProfile ? `${API_URL}/post/my-posts`
-    : `${API_URL}/post/user/${targetUserId}`
 
-    const res=await fetch(endpoint,{
-      headers:{'Authorization':`Bearer ${token}`}
+
+  const fetchUserPosts = async () => {
+    const token = Cookies.get("token");
+    const endpoint = isOwnProfile
+      ? `${API_URL}/post/my-posts`
+      : `${API_URL}/post/user/${targetUserId}`;
+
+    const res = await fetch(endpoint, {
+      headers: { Authorization: `Bearer ${token}` },
     });
 
-    if(!res.ok){
-      throw new Error('Failed to fetch post')
+    if (!res.ok) {
+      throw new Error("Failed to fetch post");
     }
-    return res.json()
-  }
-  const {data:rawPost}=useQuery({
-    queryKey:['posts',targetUserId],
-    queryFn:fetchUserPosts,
-    enabled:!!targetUserId,
-  })
-  const userPost=Array.isArray(rawPost)?rawPost:rawPost?.data || []
+    return res.json();
+  };
+
+  const { data: rawPost } = useQuery({
+    queryKey: ["posts", targetUserId],
+    queryFn: fetchUserPosts,
+    enabled: !!targetUserId,
+  });
+  const userPost = Array.isArray(rawPost) ? rawPost : rawPost?.data || [];
+
+  
+  const fetchUserReposts = async () => {
+    const token = Cookies.get("token");
+  
+    const res = await fetch(`${API_URL}/post/${targetUserId}/reposts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to fetch reposts");
+    }
+    return res.json();
+  };
+
+  const { data: repostsData, isLoading: isRepostsLoading } = useQuery({
+    queryKey: ["reposts", targetUserId],
+    queryFn: fetchUserReposts,
+    enabled: !!targetUserId && activeTab === "repost", 
+  });
+
+  const userReposts = Array.isArray(repostsData) ? repostsData : [];
+
+  
 
   useEffect(() => {
     if (isOwnProfile && globalUser) {
@@ -104,7 +132,6 @@ const Profile = () => {
           const data = await res.json();
           setUserProfile(data);
         }
-
       } catch (error) {
         console.error("Error fetching profile", error);
       }
@@ -263,11 +290,11 @@ const Profile = () => {
             <div
               onClick={() => setActiveTab("threads")}
               className={`flex-1 text-center py-3 cursor-pointer font-medium text-[15px] border-b transition-colors duration-200
-                         ${
-                           activeTab === "threads"
-                             ? "text-white border-white"
-                             : "text-[#616161] border-transparent hover:text-[#a0a0a0]"
-                         }`}
+                          ${
+                            activeTab === "threads"
+                              ? "text-white border-white"
+                              : "text-[#616161] border-transparent hover:text-[#a0a0a0]"
+                          }`}
             >
               Ланцюжки
             </div>
@@ -326,7 +353,32 @@ const Profile = () => {
           {activeTab === "threads" && (
             <div className="pb-20">
               {(() => {
-                if (!isOwnProfile) return null;
+                if (!isOwnProfile) {
+                    return (
+                        <div className="flex flex-col">
+                        {userPost.map((post: any) => (
+                            <Post
+                            key={post.id}
+                            id={post.id}
+                            title={post.title}
+                            description={post.description}
+                            image={post.image}
+                            autor={post.autor}
+                            createdAt={post.createdAt}
+                            isLiked={post.isLiked}
+                            isFollowing={post.isFollowing}
+                            repostCount={post._count?.reposts || 0}
+                            stats={{
+                                likes: post._count?.reactions || 0,
+                                dislike: 0,
+                                comments: post._count?.comment || 0,
+                                reposts:post._count?.reposts || 0
+                            }}
+                            />
+                        ))}
+                        </div>
+                    );
+                }
 
                 const tasks = [
                   isPostsDone,
@@ -377,11 +429,11 @@ const Profile = () => {
                           <div className="min-w-[205px] w-[205px] bg-[#1E1E1E] p-4 rounded-2xl flex flex-col items-center text-center shrink-0">
                             <div
                               className={`w-14 h-14 rounded-full border flex items-center justify-center mb-2 shrink-0 transition-colors duration-200
-                                                     ${
-                                                       isPostsDone
-                                                         ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
-                                                         : "bg-black border-white/10 text-white"
-                                                     }`}
+                                                    ${
+                                                      isPostsDone
+                                                        ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
+                                                        : "bg-black border-white/10 text-white"
+                                                    }`}
                             >
                               {isPostsDone ? (
                                 <FiCheck size={28} />
@@ -399,11 +451,11 @@ const Profile = () => {
                               onClick={() => setCreateThreadModal(true)}
                               disabled={isPostsDone}
                               className={`w-full py-1.5 font-bold rounded-lg text-sm mt-auto transition-all duration-200 border
-                                                         ${
-                                                           isPostsDone
-                                                             ? "bg-transparent border-[#333] text-[#616161] cursor-default"
-                                                             : "bg-white border-white text-black hover:bg-neutral-200"
-                                                         }`}
+                                                                  ${
+                                                                    isPostsDone
+                                                                      ? "bg-transparent border-[#333] text-[#616161] cursor-default"
+                                                                      : "bg-white border-white text-black hover:bg-neutral-200"
+                                                                  }`}
                             >
                               {isPostsDone ? "Виконано" : "Створити"}
                             </button>
@@ -412,11 +464,11 @@ const Profile = () => {
                           <div className="min-w-[205px] w-[205px] bg-[#1E1E1E] p-4 rounded-2xl flex flex-col items-center text-center shrink-0">
                             <div
                               className={`w-14 h-14 rounded-full border flex items-center justify-center mb-2 shrink-0 transition-colors duration-200
-                                                     ${
-                                                       isFollowingDone
-                                                         ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
-                                                         : "bg-black border-white/10 text-white"
-                                                     }`}
+                                                    ${
+                                                      isFollowingDone
+                                                        ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
+                                                        : "bg-black border-white/10 text-white"
+                                                    }`}
                             >
                               {isFollowingDone ? (
                                 <FiCheck size={28} />
@@ -431,14 +483,14 @@ const Profile = () => {
                               Наповніть свою стрічку.
                             </p>
                             <button
-                              onClick={()=>navigate('/search')}
+                              onClick={() => navigate("/search")}
                               disabled={isFollowingDone}
                               className={`w-full py-1.5 font-bold rounded-lg text-sm mt-auto transition-all duration-200 border
-                                                     ${
-                                                       isFollowingDone
-                                                         ? "bg-transparent border-[#333] text-[#616161] cursor-default"
-                                                         : "bg-white border-white text-black hover:bg-neutral-200"
-                                                     }`}
+                                                                  ${
+                                                                    isFollowingDone
+                                                                      ? "bg-transparent border-[#333] text-[#616161] cursor-default"
+                                                                      : "bg-white border-white text-black hover:bg-neutral-200"
+                                                                  }`}
                             >
                               {isFollowingDone ? "Виконано" : "Стежити"}
                             </button>
@@ -447,11 +499,11 @@ const Profile = () => {
                           <div className="min-w-[205px] w-[205px] bg-[#1E1E1E] p-4 rounded-2xl flex flex-col items-center text-center shrink-0">
                             <div
                               className={`w-14 h-14 rounded-full border flex items-center justify-center mb-2 shrink-0 transition-colors duration-200
-                                                     ${
-                                                       isBioDone
-                                                         ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
-                                                         : "bg-black border-white/10 text-white"
-                                                     }`}
+                                                    ${
+                                                      isBioDone
+                                                        ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
+                                                        : "bg-black border-white/10 text-white"
+                                                    }`}
                             >
                               {isBioDone ? (
                                 <FiCheck size={28} />
@@ -471,11 +523,11 @@ const Profile = () => {
                               }
                               disabled={isBioDone}
                               className={`w-full py-1.5 font-bold rounded-lg text-sm mt-auto transition-all duration-200 border
-                                                         ${
-                                                           isBioDone
-                                                             ? "bg-transparent border-[#333] text-[#616161] cursor-default"
-                                                             : "bg-white border-white text-black hover:bg-neutral-200"
-                                                         }`}
+                                                                  ${
+                                                                    isBioDone
+                                                                      ? "bg-transparent border-[#333] text-[#616161] cursor-default"
+                                                                      : "bg-white border-white text-black hover:bg-neutral-200"
+                                                                  }`}
                             >
                               {isBioDone ? "Виконано" : "Додати"}
                             </button>
@@ -484,11 +536,11 @@ const Profile = () => {
                           <div className="min-w-[205px] w-[205px] bg-[#1E1E1E] p-4 rounded-2xl flex flex-col items-center text-center shrink-0">
                             <div
                               className={`w-14 h-14 rounded-full border flex items-center justify-center mb-2 shrink-0 transition-colors duration-200
-                                                     ${
-                                                       isAvatarDone
-                                                         ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
-                                                         : "bg-black border-white/10 text-white"
-                                                     }`}
+                                                    ${
+                                                      isAvatarDone
+                                                        ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
+                                                        : "bg-black border-white/10 text-white"
+                                                    }`}
                             >
                               {isAvatarDone ? (
                                 <FiCheck size={28} />
@@ -508,11 +560,11 @@ const Profile = () => {
                               }
                               disabled={isAvatarDone}
                               className={`w-full py-1.5 font-bold rounded-lg text-sm mt-auto transition-all duration-200 border
-                                                         ${
-                                                           isAvatarDone
-                                                             ? "bg-transparent border-[#333] text-[#616161] cursor-default"
-                                                             : "bg-white border-white text-black hover:bg-neutral-200"
-                                                         }`}
+                                                                  ${
+                                                                    isAvatarDone
+                                                                      ? "bg-transparent border-[#333] text-[#616161] cursor-default"
+                                                                      : "bg-white border-white text-black hover:bg-neutral-200"
+                                                                  }`}
                             >
                               {isAvatarDone ? "Виконано" : "Додати"}
                             </button>
@@ -523,7 +575,7 @@ const Profile = () => {
 
                     {isPostsDone && (
                       <div className="flex flex-col">
-                        {userPost.map((post:any) => (
+                        {userPost.map((post: any) => (
                           <Post
                             key={post.id}
                             id={post.id}
@@ -537,7 +589,8 @@ const Profile = () => {
                             stats={{
                               likes: post._count?.reactions || 0,
                               dislike: 0,
-                              comments:post._count?.comment || 0
+                              comments: post._count?.comment || 0,
+                              reposts:post._count?.reposts || 0
                             }}
                           />
                         ))}
@@ -570,17 +623,47 @@ const Profile = () => {
               )}
             </div>
           )}
+          
           {activeTab === "repost" && (
-            <div className="grow flex items-center justify-center pt-20">
-              {reposts.length > 0 ? (
-                <div>Репости</div>
+            <div className="pb-20">
+              {isRepostsLoading ? (
+                <div className="flex justify-center pt-20 text-[#616161]">
+                  Завантаження...
+                </div>
+              ) : userReposts.length > 0 ? (
+                <div className="flex flex-col">
+                  {userReposts.map((post: any) => (
+                    <Post
+                      key={post.repostId}
+                      id={post.id} 
+                      title={post.title}
+                      description={post.description}
+                      image={post.image}
+                      autor={post.autor} 
+                      createdAt={post.createdAt} 
+                      isLiked={post.isLiked}
+                      isFollowing={post.autor?.isFollowing}
+                      isRepostByMe={post.isRepostedByMe} 
+                      repostCount={post.stats?.reposts || 0}
+                      stats={{
+                        likes: post.stats?.likes || 0,
+                        dislike: 0,
+                        comments: post.stats?.comments || 0,
+                        reposts: post.stats?.reposts || 0
+                      }}
+                    />
+                  ))}
+                </div>
               ) : (
-                <div className="text-[#616161] text-[15px]">
-                  Репостів ще немає.
+                <div className="grow flex items-center justify-center pt-20">
+                  <div className="text-[#616161] text-[15px]">
+                    Репостів ще немає.
+                  </div>
                 </div>
               )}
             </div>
           )}
+        
         </div>
       </div>
       {openFollowersModal && userProfile && (

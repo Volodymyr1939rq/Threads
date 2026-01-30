@@ -25,6 +25,7 @@ interface Statistic {
   likes: number;
   dislike: number;
   comments: number;
+  reposts?:number;
 }
 
 interface Autor {
@@ -52,6 +53,9 @@ interface PostProps {
   onClick?: () => void;
   hasBorder?: boolean;
   repliesCount?:number;
+  repostCount?:number;
+  isRepostByMe?:boolean;
+  isRepost?:boolean;
 }
 
 const Post = ({
@@ -71,7 +75,10 @@ const Post = ({
   rootPostId,
   onClick,
   hasBorder = true,
-  repliesCount:propRepliesCount
+  repliesCount:propRepliesCount,
+  repostCount:propRepostCount,
+  isRepostByMe=false,
+  isRepost=false
 }: PostProps) => {
   const API_URL = "http://localhost:3000";
   const { user } = useCurrentUser();
@@ -80,13 +87,17 @@ const Post = ({
   const { postStates, updatePostState, initPostState, decrementComments } = usePostContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [postIsDeleted, setPostIsDeleted] = useState(false);
+  const [isReposted,setIsReposted]=useState(isRepostByMe)
+  const [repostCount,setRepostCount]=useState(propRepostCount ?? stats?.reposts ?? 0)
   const navigate = useNavigate();
   const { openReplyModal } = useReplyModal();
   
+  useEffect(()=>{
+    setRepostCount(stats?.reposts || 0)
+    setIsReposted(isRepostByMe || false)
+  },[stats?.reposts,isRepostByMe])
 
   const queryClient = useQueryClient();
-
- 
 
   useEffect(() => {
     initPostState(id, initialIsLiked, stats?.likes || 0, serverCommentsCount,);
@@ -103,7 +114,35 @@ const Post = ({
     e.stopPropagation(); 
         
   };
-
+  
+  const handleRepost=async()=>{
+     const token=Cookies.get('token')
+     if(!token){
+      console.error('token not found')
+     }
+     const prevIsReposted=isReposted
+     const prevCount=repostCount
+     setIsReposted(!prevIsReposted)
+     setRepostCount(prevIsReposted ? prevCount-1:prevCount+1)
+     try {
+      const res=await fetch(`${API_URL}/post/${id}/repost`,{
+        method:'POST',
+        headers:{'Authorization':`Bearer ${token}`,
+      'Content-Type':'application/json'}
+      })
+      if(!res.ok){
+        throw new Error('Failed to repost')
+      }
+      setTimeout(async()=>{
+        await queryClient.invalidateQueries({queryKey:['posts']})
+        await queryClient.invalidateQueries({queryKey:['reposts']})
+      },500)
+     } catch (error) {
+      console.error(error)
+      setIsReposted(prevIsReposted)
+      setRepostCount(prevCount)
+     }
+  }
   const deleteMutation = useMutation({
     mutationFn: async () => {
       const token = Cookies.get("token");
@@ -329,7 +368,13 @@ const Post = ({
               <span className="text-sm text-neutral-500">{commentsCount}</span>
             )}
           </button>
-          <button className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition">
+          <button 
+          onClick={(e)=>{e.stopPropagation(); handleRepost()}}
+          className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition"
+          >
+          {repostCount>0 && (
+            <span className="text-neutral-500 text-sm">{repostCount}</span>
+          )}
             <IoRepeatOutline
               size={20}
               className="text-neutral-500 transition-colors"
@@ -363,6 +408,12 @@ const Post = ({
               ${hasBorder ? "border-b border-[#333]" : ""}
             `}
     >
+      {isRepost && (
+        <div className="flex items-center gap-2 text-[#616161] px-4 pt-3 pb-0 text-[13px] font-bold">
+           <IoRepeatOutline size={16}/>
+           <span>Повторно опубліковано</span>
+        </div>
+      )}
       {hasThreadLine && (
         <div
           className={`
@@ -487,12 +538,17 @@ const Post = ({
                 <span className="text-sm text-neutral-500">{commentsCount}</span>
               )}
             </button>
-            <button className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition">
+            <button 
+            onClick={(e)=>{e.stopPropagation();handleRepost()}}
+            className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition">
               <IoRepeatOutline
                 size={20}
                 className="text-neutral-500  transition-colors"
                 style={{ transform: 'scaleY(1.5)' }}
               />
+              {repostCount>0 && (
+                <span className="text-sm text-neutral-500">{repostCount}</span>
+              )}
             </button>
             <button className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition">
               <IoPaperPlaneOutline
