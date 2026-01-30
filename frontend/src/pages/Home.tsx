@@ -29,8 +29,13 @@ interface PostData {
         isFollowing:boolean;
     };
 
-    stats: {
+    stats?: {
         likes: number;
+        comments: number;
+        reposts: number;
+    };
+    _count?: {
+        reactions: number;
         comments: number;
         reposts: number;
     };
@@ -220,14 +225,14 @@ const Home = ({ refresh }: HomeProps) => {
                                 createdAt={post.createdAt}
                                 isRepost={post.isRepost}
                                 stats={{
-                                    likes: post.stats.likes,
+                                    likes: post.stats?.likes ?? post._count?.reactions ?? 0,
                                     dislike: 0,
-                                    comments: post.stats.comments,
-                                    reposts: post.stats.reposts 
+                                    comments: post.stats?.comments ?? post._count?.comments ?? 0,
+                                    reposts: post.stats?.reposts ?? post._count?.reposts ?? 0 
                                 }}
                                 isLiked={post.isLiked}
                                 isRepostByMe={post.isRepostByMe} 
-                                repostCount={post.stats.reposts}
+                                repostCount={post.stats?.reposts ?? post._count?.reposts ?? 0}
                                 isFollowing={post.autor.isFollowing}
                                 onFollowChange={(id, status) => handleFollowUpdate(id, status)}
                                 onUserClick={(clickedUserId) => {

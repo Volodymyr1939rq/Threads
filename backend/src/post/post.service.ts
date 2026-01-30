@@ -299,8 +299,16 @@ export class PostService {
                         autor: {
                             select: { id: true, name: true, avatarPath: true }
                         },
+                        originalPost:{
+                            include:{
+                              autor:{select:{id:true,name:true,avatarPath:true}},
+                              _count:{select:{reactions:true,comments:true,reposts:true}},
+                              reactions:{where:{userId:currentUserId,isLiked:true},select:{id:true}},
+                              reposts:{where:{autorId:currentUserId},select:{id:true}}
+                            }
+                        },
                         _count: {
-                            select: { reactions: { where: { isLiked: true } }, comments: true }
+                            select: { reactions: { where: { isLiked: true } }, comments: true,reposts:true }
                         },
                         reactions: {
                             where: {
@@ -308,6 +316,12 @@ export class PostService {
                                 isLiked: true
                             },
                             select: { id: true }
+                        },
+                        reposts:{
+                            where:{
+                                autorId:currentUserId
+                            },
+                            select:{id:true}
                         }
                     }
                 }),
@@ -315,10 +329,27 @@ export class PostService {
             ]);
             const followedIdsSet = new Set(follows.map(f => f.followingId))
             const reactionsWithLikeStatus = posts.map(post => {
+                const isRepost=!!post.originalPost
+                const contentPost=(post.originalPost || post) as any;
                 return {
-                    ...post,
-                    isLiked: post.reactions.length > 0,
-                    isFollowing: followedIdsSet.has(post.autor.id)
+                    id:post.id,
+                    createdAt:post.createdAt,
+                    title:contentPost.title,
+                    description:contentPost.description,
+                    image:contentPost.image,
+                    autor:{
+                        ...contentPost.autor,
+                        isFollowing:followedIdsSet.has(contentPost.autor.id)
+                    },
+                    stats:{
+                        likes:contentPost._count.reactions,
+                        comments:contentPost._count.comments,
+                        reposts:contentPost._count.reposts || 0
+                    },
+                    isLiked:contentPost.reactions.length>0,
+                    isRepostByMe:contentPost.reposts?.length>0,
+                    isRepost:isRepost,
+                    isFollowing:followedIdsSet.has(contentPost.autor.id)
                 }
             })
 
