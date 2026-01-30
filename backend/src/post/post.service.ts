@@ -56,13 +56,27 @@ export class PostService {
                     where: whereConditional,
                     include: {
                         autor: { select: { id: true, name: true, avatarPath: true } },
-                        _count: { select: { reactions: { where: { isLiked: true } }, comments: true } },
+                        originalPost:{
+                            include:{
+                                autor:{select:{id:true,name:true,avatarPath:true}},
+                                _count:{select:{reactions:true,comments:true,reposts:true}},
+                                reactions:{where:{userId:currentUserId,isLiked:true},select:{id:true}},
+                                reposts:{where:{autorId:currentUserId},select:{id:true}}
+                            }
+                        },
+                        _count: { select: { reactions: { where: { isLiked: true } }, comments: true ,reposts:true} },
                         reactions: {
                             where: {
                                 userId: currentUserId,
                                 isLiked: true
                             },
                             select: { id: true }
+                        },
+                        reposts:{
+                            where:{
+                                autorId:currentUserId,
+                            },
+                            select:{id:true}
                         }
                     }
                 }),
@@ -77,11 +91,28 @@ export class PostService {
                 follows.forEach(f => followedIds.add(f.followingId))
             }
             const postWithStatus = posts.map(post => {
+                const isRepost=!!post.originalPost
+                const contentPost=(post.originalPost || post) as any;
+                const isFollowingAutor=followedIds.has(contentPost.autor.id)
                 return {
-                    ...post,
-                    isLiked: post.reactions.length > 0,
-                    reactions: undefined,
-                    isFollowing: followedIds.has(post.autor.id)
+                    id:post.id,
+                    createdAt:post.createdAt,
+
+                    title:contentPost.title,
+                    description:contentPost.description,
+                    image:contentPost.image,
+                    autor:{
+                        ...contentPost.autor,
+                        isFollowing:isFollowingAutor,
+                    },
+                    stats:{
+                        likes:contentPost._count.reactions,
+                        comments:contentPost._count.comments,
+                        reposts:contentPost._count.reposts || 0
+                    },
+                    isLiked:contentPost.reactions.length>0,
+                    isRepostByMe:contentPost.reposts.length>0,
+                    isRepost:isRepost
                 }
             })
 
@@ -387,7 +418,7 @@ export class PostService {
     async getAllAutorsPosts(targetUserId: string, currentUserId: string) {
         try {
             const posts = await this.databaseService.post.findMany({
-                where: { autorId: targetUserId },
+                where: { autorId: targetUserId,originalPostId:null },
                 orderBy: {
                     createdAt: 'desc'
                 },
@@ -426,10 +457,11 @@ export class PostService {
                 const contentPost=(post.originalPost || post) as any;
 
                 return {
-                    post:post.id,
+                    id:post.id,
                     createdAt:post.createdAt,
                     title:contentPost?.title,
                     image:contentPost?.image,
+                    description:contentPost?.description,
                     autor:{
                         ...post.autor,
                         isFollowing:isFollowingAutor
@@ -446,7 +478,7 @@ export class PostService {
                             reposts:contentPost?._count.reposts
                         },
                         isLiked:contentPost.reactions.length>0,
-                        isRepost:contentPost?.reposts?.length>0
+                        isRepostByMe:contentPost.reposts && contentPost.reposts.length>0
                     }:null,
                     isLiked:contentPost.reactions.length>0,
                     isReposted:contentPost.reposts.length>0,
@@ -583,5 +615,72 @@ export class PostService {
             })
             return {existRepost:true}
         }
+    }
+    async getUsersReposts(userId:string,currentUserId:string){
+        const reposts=await this.databaseService.post.findMany({
+            where:{
+                autorId:userId,
+                originalPostId:{not:null}
+            },
+            orderBy:{
+                createdAt:'desc'
+            },
+            include:{
+                originalPost:{
+                    include:{
+                        autor:{
+                            select:{id:true,name:true,avatarPath:true}
+                        },
+                        _count:{
+                            select:{reactions:true,comments:true,reposts:true}
+                        },
+                        reactions:{
+                            where:{userId:currentUserId,isLiked:true},
+                            select:{id:true}
+                        },
+                        reposts:{
+                            where:{autorId:currentUserId},
+                            select:{id:true}
+                        }
+                    }
+                }
+            }
+        })
+        const followedIds=new Set<string>()
+        if(currentUserId){
+            const follows=await this.databaseService.follows.findMany({
+                where:{followerId:currentUserId},
+                select:{followingId:true}
+            })
+            follows.forEach(f=>followedIds.add(f.followingId))
+        }
+        return reposts.map((repost)=>{
+            const original=repost.originalPost
+
+            if(!original) return null
+            const isFollowingAutor=followedIds.has(original.autor.id)
+            return {
+                repostId:repost.id,
+                id:original.id,
+                title:original.title,
+                description:original.description,
+                image:original.image,
+                createdAt:original.createdAt,
+                autor:{
+                    ...original.autor,
+                    isFollowing:isFollowingAutor
+                },
+                stats:{
+                    likes:original._count.reactions,
+                    comments:original._count.comments,
+                    reposts:original._count.reposts
+                },
+                isLiked:original.reactions.length>0,
+                isRepostedByMe:original.reposts.length>0,
+
+                reactions:undefined,
+                _count:undefined
+            }
+        }).filter(item=>item !==null)
     }
 }

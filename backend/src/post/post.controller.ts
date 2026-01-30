@@ -86,8 +86,6 @@ export class PostController {
     } catch (e) {
       
     }
-   
-
     const comment = await this.commentService.getCommentWithContext(id, userId);
 
     if (comment) {
@@ -108,5 +106,18 @@ export class PostController {
   async getActivity(@Param('id') id:string,@Req() req){
     const userId=req.user.userId
     return this.postService.getActivity(id,userId)
+  }
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/repost')
+  async reposts(@Param('id') postId:string,@Req() req){
+    const userId=req.user.userId
+    return this.postService.toggleReposts(userId,postId)
+  }
+  
+  @UseGuards(AuthGuard('jwt'))
+  @Get(':id/reposts')
+  async getUsersReposts(@Param('id') userId:string,@Req() req){
+    const currentUserId=req.user.userId
+    return this.postService.getUsersReposts(userId,currentUserId)
   }
 }
