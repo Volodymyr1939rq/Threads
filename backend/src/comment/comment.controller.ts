@@ -69,4 +69,16 @@ export class CommentController {
 
   return { ...commentAsPost, type: 'comment_as_main' };
   }
+  @UseGuards(AuthGuard('jwt'))
+  @Post(':id/repost')
+  async repostComment(@Param('id') id:string,@Req() req){
+    const userId=req.user.userId
+    return await this.commentService.repostComment(userId,id)
+  }
+  @UseGuards(OptionalJwtAuthGuard)
+  @Get(':post/postId')
+  async getCommen(@Param('postId') postId:string,@Req() req){
+    const userId=req.user?.userId
+    return await this.commentService.getCommentByPostId(postId,userId)
+  }
 }

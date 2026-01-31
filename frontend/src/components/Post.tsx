@@ -21,12 +21,11 @@ import { PostOptionsModal } from "./PostOptionalMenu";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import RepostMenu from "./RepostMenu";
 
-
 interface Statistic {
   likes: number;
   dislike: number;
   comments: number;
-  reposts?:number;
+  reposts?: number;
 }
 
 interface Autor {
@@ -53,10 +52,11 @@ interface PostProps {
   rootPostId?: string;
   onClick?: () => void;
   hasBorder?: boolean;
-  repliesCount?:number;
-  repostCount?:number;
-  isRepostByMe?:boolean;
-  isRepost?:boolean;
+  repliesCount?: number;
+  repostCount?: number;
+  isRepostByMe?: boolean;
+  isRepost?: boolean;
+  replyName?: string | null;
 }
 
 const Post = ({
@@ -76,71 +76,63 @@ const Post = ({
   rootPostId,
   onClick,
   hasBorder = true,
-  repliesCount:propRepliesCount,
-  repostCount:propRepostCount,
-  isRepostByMe=false,
-  isRepost=false
+  repliesCount: propRepliesCount,
+  repostCount: propRepostCount,
+  isRepostByMe = false,
+  isRepost = false,
+  replyName,
 }: PostProps) => {
   const API_URL = "http://localhost:3000";
   const { user } = useCurrentUser();
   const isMe = user?.id === autor.id;
-  const serverCommentsCount=propRepliesCount ?? stats?.comments ?? 0
-  const { postStates, updatePostState, initPostState, decrementComments } = usePostContext();
+  const serverCommentsCount = propRepliesCount ?? stats?.comments ?? 0;
+  const { postStates, updatePostState, initPostState, decrementComments } =
+    usePostContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [postIsDeleted, setPostIsDeleted] = useState(false);
-  const [isReposted,setIsReposted]=useState(isRepostByMe)
-  const [repostCount,setRepostCount]=useState(propRepostCount ?? stats?.reposts ?? 0)
-  const [showMenu,setShowMenu]=useState(false)
+  const [isReposted, setIsReposted] = useState(isRepostByMe);
+  const [repostCount, setRepostCount] = useState(
+    propRepostCount ?? stats?.reposts ?? 0
+  );
+  const [showMenu, setShowMenu] = useState(false);
   const navigate = useNavigate();
   const { openReplyModal } = useReplyModal();
-  
-  useEffect(()=>{
-    setRepostCount(stats?.reposts || 0)
-    setIsReposted(isRepostByMe || false)
-  },[stats?.reposts,isRepostByMe])
+
+  useEffect(() => {
+    setRepostCount(stats?.reposts || 0);
+    setIsReposted(isRepostByMe || false);
+  }, [stats?.reposts, isRepostByMe]);
 
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    initPostState(id, initialIsLiked, stats?.likes || 0, serverCommentsCount,);
-  }, [id, initialIsLiked, stats?.likes, stats?.comments,serverCommentsCount, initPostState]);
+    initPostState(
+      id,
+      initialIsLiked,
+      stats?.likes || 0,
+      serverCommentsCount
+    );
+  }, [
+    id,
+    initialIsLiked,
+    stats?.likes,
+    stats?.comments,
+    serverCommentsCount,
+    initPostState,
+  ]);
 
   const storedState = postStates[id];
   const isLiked = storedState ? storedState.isLiked : initialIsLiked;
   const likesCount = storedState ? storedState.likesCount : stats?.likes || 0;
-  const commentsCount = (serverCommentsCount>(storedState?.commentsCount || 0))
-    ? serverCommentsCount
-    : (storedState?.commentsCount || 0);
+  const commentsCount =
+    serverCommentsCount > (storedState?.commentsCount || 0)
+      ? serverCommentsCount
+      : storedState?.commentsCount || 0;
 
   const handleFollowClick = (e: React.MouseEvent) => {
-    e.stopPropagation();   
+    e.stopPropagation();
   };
-  
-  // const handleRepost=async()=>{
-  //    const token=Cookies.get('token')
-  //    if(!token){
-  //     console.error('token not found')
-  //    }
-  //    const prevIsReposted=isReposted
-  //    const prevCount=repostCount
-  //    setIsReposted(!prevIsReposted)
-  //    setRepostCount(prevIsReposted ? prevCount-1:prevCount+1)
-  //    try {
-  //     const res=await fetch(`${API_URL}/post/${id}/repost`,{
-  //       method:'POST',
-  //       headers:{'Authorization':`Bearer ${token}`,
-  //     'Content-Type':'application/json'}
-  //     })
-  //     if(!res.ok){
-  //       throw new Error('Failed to repost')
-  //     }
-      
-  //    } catch (error) {
-  //     console.error(error)
-  //     setIsReposted(prevIsReposted)
-  //     setRepostCount(prevCount)
-  //    }
-  // }
+
   const deleteMutation = useMutation({
     mutationFn: async () => {
       const token = Cookies.get("token");
@@ -266,7 +258,8 @@ const Post = ({
   );
 
   if (postIsDeleted) return null;
-  
+
+  // ===== ВІДОБРАЖЕННЯ ДЛЯ ОКРЕМОЇ СТОРІНКИ ПОСТА (Main Post) =====
   if (isMainPost) {
     return (
       <div className="w-full px-4 py-4 cursor-default">
@@ -285,7 +278,7 @@ const Post = ({
                   className={`absolute -bottom-1 -right-1 cursor-pointer bg-white text-black rounded-full w-5 h-5 flex items-center justify-center border-2 border-[#181818] transition-colors duration-200 ${
                     isFollowing ? "bg-black border-white" : "bg-white"
                   }`}
-                  onClick={handleFollowClick} 
+                  onClick={handleFollowClick}
                 >
                   {isFollowing ? (
                     <Check size={12} strokeWidth={3} color="white" />
@@ -295,8 +288,9 @@ const Post = ({
                 </div>
               )}
             </div>
-            <div className="flex items-center leading-none">
-              <div className="flex items-center gap-1">
+            
+            <div className="flex flex-col justify-center">
+              <div className="flex items-center gap-1 leading-tight">
                 <UserHoverCard userId={autor.id}>
                   <h3
                     onClick={handleProfileClick}
@@ -306,16 +300,26 @@ const Post = ({
                   </h3>
                 </UserHoverCard>
                 <MdVerified color="#1d9bf0" size={16} />
-                <span className="text-neutral-500 text-sm ">{timeAgo}</span>
+                <span className="text-neutral-500 text-sm">{timeAgo}</span>
               </div>
+              
+              {replyName && (
+                <div className="text-neutral-500 text-sm mt-0.5">
+                  Відповідь користувачу{" "}
+                  <span className="text-[#1d9bf0]">@{replyName}</span>
+                </div>
+              )}
             </div>
           </div>
           <MenuButton />
         </div>
 
-        <div className="mb-3">
+        <div className="mb-3 text-[15px] wrap-break-word">
+          <p className="text-white font-medium whitespace-pre-wrap">
+              {title}
+          </p>
           {description && (
-            <p className="text-gray-300 font-normal text-[16px] mt-2 whitespace-pre-wrap leading-normal">
+            <p className="text-gray-300 font-normal mt-2 whitespace-pre-wrap leading-normal">
               {description}
             </p>
           )}
@@ -333,56 +337,68 @@ const Post = ({
             />
           </div>
         )}
-        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-transparent">
+
+        {/* КНОПКИ ДІЙ (Main Post) */}
+        <div className="flex items-center gap-6 -ml-2 mt-2 pt-2 border-t border-transparent">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleLike();
-            }}
-            className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition gap-1"
+            onClick={(e) => { e.stopPropagation(); handleLike(); }}
+            className="group flex items-center justify-center p-2 duration-200 rounded-full hover:bg-neutral-600/15 transition"
           >
             {isLiked ? (
               <IoHeart size={20} className="text-[#ff0033]" />
             ) : (
-              <IoHeartOutline
-                size={20}
-                className="text-neutral-500 transition-colors"
-              />
+              <IoHeartOutline size={20} className="text-neutral-500 transition-colors" />
             )}
             {likesCount > 0 && (
-              <span className={`text-sm transition-colors ${isLiked ? 'text-[#ff0033]' : 'text-neutral-500'}`}>{likesCount}</span>
+              <span className={`text-sm ml-1.5 transition-colors ${isLiked ? "text-[#ff0033]" : "text-neutral-500"}`}>
+                {likesCount}
+              </span>
             )}
           </button>
 
           <button
             onClick={replyHandleClick}
-            className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition gap-1"
+            className="group flex items-center justify-center p-2 duration-200 rounded-full hover:bg-neutral-600/15 transition"
           >
-            <IoChatbubbleOutline
-              size={20}
-              className="text-neutral-500 transition-colors"
-            />
+            <IoChatbubbleOutline size={20} className="text-neutral-500 transition-colors" />
             {commentsCount > 0 && (
-              <span className="text-sm text-neutral-500">{commentsCount}</span>
+              <span className="text-sm ml-1.5 text-neutral-500">{commentsCount}</span>
             )}
           </button>
-          <button 
-          onClick={(e)=>{e.stopPropagation(); setShowMenu(!showMenu)}}
-          className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition"
-          >
-          {repostCount>0 && (
-            <span className="text-neutral-500 text-sm">{repostCount}</span>
-          )}
-            <IoRepeatOutline
-              size={20}
-              className="text-neutral-500 transition-colors"
-            />
-          </button>
-          <button className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition">
-            <IoPaperPlaneOutline
-              size={20}
-              className="text-neutral-500 transition-colors"
-            />
+
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+              className="group flex items-center justify-center p-2 duration-200 rounded-full hover:bg-neutral-600/15 transition"
+            >
+              <IoRepeatOutline
+                size={20}
+                className={`${isRepostByMe ? "text-green-500" : "text-neutral-500"} transition-colors`}
+                style={{ transform: "scaleY(1.2)" }}
+              />
+              {repostCount > 0 && (
+                <span className={`text-sm ml-1.5 ${isRepostByMe ? "text-green-500" : "text-neutral-500"}`}>
+                  {repostCount}
+                </span>
+              )}
+            </button>
+            {showMenu && (
+              <RepostMenu
+                postId={id}
+                isReposted={isReposted}
+                currentCount={repostCount}
+                onClose={() => setShowMenu(false)}
+                updateState={(newState, newCount) => {
+                  setIsReposted(newState);
+                  setRepostCount(newCount);
+                }}
+                type={type}
+              />
+            )}
+          </div>
+
+          <button className="group flex items-center justify-center p-2 duration-200 rounded-full hover:bg-neutral-600/15 transition">
+            <IoPaperPlaneOutline size={20} className="text-neutral-500 transition-colors" />
           </button>
         </div>
 
@@ -397,30 +413,21 @@ const Post = ({
     );
   }
 
-
+  // ===== ВІДОБРАЖЕННЯ ДЛЯ СТРІЧКИ (Feed Item) =====
   return (
     <div
       onClick={handlePostClick}
-      className={`
-              relative w-full transition duration-200 cursor-pointer 
-              ${hasBorder ? "border-b border-[#333]" : ""}
-            `}
+      className={`relative w-full transition duration-200 cursor-pointer ${hasBorder ? "border-b border-[#333]" : ""}`}
     >
       {isRepost && (
         <div className="flex items-center gap-2 text-[#616161] px-4 pt-3 pb-0 text-[13px] font-bold">
-           <IoRepeatOutline size={16}/>
-           <span>Повторно опубліковано</span>
+          <IoRepeatOutline size={16} />
+          <span>Повторно опубліковано</span>
         </div>
       )}
+      
       {hasThreadLine && (
-        <div
-          className={`
-                  absolute w-0.5 bg-[#333] z-1
-                  left-[33px] 
-                  ${type === "comment" ? "top-[60px]" : "top-16"}
-                  -bottom-2
-                `}
-        ></div>
+        <div className={`absolute w-0.5 bg-[#333] z-1 left-[33px] ${type === "comment" ? "top-[60px]" : "top-16"} -bottom-2`}></div>
       )}
 
       <div className="flex w-full h-fit px-4 gap-3 py-4">
@@ -432,59 +439,52 @@ const Post = ({
               if (onUserClick) onUserClick(autor.id);
             }}
           >
-            <Avatar
-              src={getImageUrl(autor.avatarPath, "avatars")}
-              alt="avatar"
-            />
-            {!isMe  && !isFollowing && (
+            <Avatar src={getImageUrl(autor.avatarPath, "avatars")} alt="avatar" />
+            {!isMe && !isFollowing && (
               <div
                 className={`absolute -bottom-1 -right-1 cursor-pointer bg-white text-black rounded-full w-4 h-4 flex items-center justify-center border-2 border-[#181818] transition-colors duration-200 ${
                   isFollowing ? "bg-black border-white" : "bg-white"
                 }`}
-                onClick={handleFollowClick} 
+                onClick={handleFollowClick}
               >
-                {isFollowing ? (
-                  <Check size={10} strokeWidth={3} color="white" />
-                ) : (
-                  <Plus size={10} strokeWidth={3} color="black" />
-                )}
+                {isFollowing ? <Check size={10} strokeWidth={3} color="white" /> : <Plus size={10} strokeWidth={3} color="black" />}
               </div>
             )}
           </div>
         </div>
 
-        <div className="w-full flex flex-col pb-0">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-1">
+        <div className="w-full flex flex-col pb-0 min-w-0">
+          <div className="flex justify-between items-start w-full">
+            <div className="flex items-center gap-1 overflow-hidden">
               <UserHoverCard userId={autor.id}>
                 <h3
                   onClick={(e) => {
                     e.stopPropagation();
                     if (onUserClick) onUserClick(autor.id);
                   }}
-                  className="font-semibold text-[15px] text-white hover:underline decoration-1 cursor-pointer leading-none"
+                  className="font-semibold text-[15px] text-white hover:underline decoration-1 cursor-pointer truncate"
                 >
                   {autor.name}
                 </h3>
               </UserHoverCard>
-              <MdVerified color="#1d9bf0" className="mt-0.5" size={14} />
-              <span className="text-sm text-neutral-500">{timeAgo}</span>
+              <MdVerified color="#1d9bf0" className="shrink-0" size={14} />
+              <span className="text-sm text-neutral-500 whitespace-nowrap ml-1">{timeAgo}</span>
             </div>
-
-            <div className="flex items-center gap-3 text-neutral-500">
+            <div className="flex items-center gap-3 text-neutral-500 shrink-0 ml-2">
               <MenuButton />
             </div>
           </div>
 
-          <div className="-mt-1 text-[15px] leading-snug">
-            <p className="text-white font-medium whitespace-pre-wrap">
-              {title}
-            </p>
-            {description && (
-              <p className="text-[#cccccc] font-normal mt-0.5 whitespace-pre-wrap">
-                {description}
-              </p>
-            )}
+          {replyName && (
+            <div className="text-[#616161] text-[14px] mt-0.5 mb-1 leading-none truncate w-full">
+              Відповідь користувачу{" "}
+              <span className="text-[#1d9bf0] cursor-pointer hover:underline">@{replyName}</span>
+            </div>
+          )}
+
+          <div className={`text-[15px] leading-snug wrap-break-word ${replyName ? "" : "mt-0.5"}`}>
+            <p className="text-white font-medium whitespace-pre-wrap">{title}</p>
+            {description && <p className="text-[#cccccc] font-normal mt-0.5 whitespace-pre-wrap">{description}</p>}
           </div>
 
           {image && (
@@ -493,84 +493,77 @@ const Post = ({
                 src={getImageUrl(image, "posts") || ""}
                 alt="Post content"
                 className="w-full object-cover max-h-[500px]"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
               />
             </div>
           )}
 
-          <div
-            className={`flex items-center gap-3 -ml-2 ${
-              type === "comment" ? "mt-1" : "mt-2.5"
-            }`}
-          >
+          {/* КНОПКИ ДІЙ (Feed Item) */}
+          <div className="flex items-center gap-6 -ml-2 mt-2.5">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleLike();
-              }}
-              className="group flex items-center justify-center gap-1 p-2 w-14 h-8 duration-200 rounded-2xl hover:bg-neutral-600/15 transition"
+              onClick={(e) => { e.stopPropagation(); handleLike(); }}
+              className="group flex items-center justify-center p-2 duration-200 rounded-full hover:bg-neutral-600/15 transition"
             >
               {isLiked ? (
                 <IoHeart size={20} className="text-[#ff0033]" />
               ) : (
-                <IoHeartOutline
-                  size={20}
-                  className="text-neutral-500 transition-colors"
-                />
+                <IoHeartOutline size={20} className="text-neutral-500 transition-colors" />
               )}
               {likesCount > 0 && (
-                <span className={`text-sm transition-colors ${isLiked ? 'text-[#ff0033]' : 'text-neutral-500'}`}>{likesCount}</span>
+                <span className={`text-sm ml-1.5 transition-colors ${isLiked ? "text-[#ff0033]" : "text-neutral-500"}`}>
+                  {likesCount}
+                </span>
               )}
             </button>
+
             <button
               onClick={replyHandleClick}
-              className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition gap-1"
+              className="group flex items-center justify-center p-2 duration-200 rounded-full hover:bg-neutral-600/15 transition"
             >
-              <IoChatbubbleOutline
-                size={20}
-                className="text-neutral-500  transition-colors"
-              />
+              <IoChatbubbleOutline size={20} className="text-neutral-500 transition-colors" />
               {commentsCount > 0 && (
-                <span className="text-sm text-neutral-500">{commentsCount}</span>
+                <span className="text-sm ml-1.5 text-neutral-500">{commentsCount}</span>
               )}
             </button>
+
             <div className="relative">
-            <button 
-            onClick={(e)=>{e.stopPropagation();setShowMenu(!showMenu)}}
-            className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition">
-              <IoRepeatOutline
-                size={20}
-                className="text-neutral-500  transition-colors"
-                style={{ transform: 'scaleY(1.5)' }}
-              />
-              {repostCount>0 && (
-                <span className="text-sm text-neutral-500">{repostCount}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
+                className="group flex items-center justify-center p-2 duration-200 rounded-full hover:bg-neutral-600/15 transition"
+              >
+                <IoRepeatOutline
+                  size={20}
+                  className={`${isRepostByMe ? "text-green-500" : "text-neutral-500"} transition-colors`}
+                  style={{ transform: "scaleY(1.2)" }}
+                />
+                {repostCount > 0 && (
+                  <span className={`text-sm ml-1.5 ${isRepostByMe ? "text-green-500" : "text-neutral-500"}`}>
+                    {repostCount}
+                  </span>
+                )}
+              </button>
+              {showMenu && (
+                <RepostMenu
+                  postId={id}
+                  isReposted={isReposted}
+                  currentCount={repostCount}
+                  onClose={() => setShowMenu(false)}
+                  updateState={(newState, newCount) => {
+                    setIsReposted(newState);
+                    setRepostCount(newCount);
+                  }}
+                  type={type}
+                />
               )}
-            </button>
-             {showMenu && (
-        <RepostMenu 
-        postId={id}
-        isReposted={isReposted}
-        currentCount={repostCount}
-        onClose={()=>setShowMenu(false)}
-        updateState={(newState,newCount)=>{
-          setIsReposted(newState)
-          setRepostCount(newCount)
-        }}
-        />
-      )}
-    </div>
-            <button className="group p-2 hover:bg-neutral-600/15 rounded-2xl w-14 h-8 flex items-center justify-center duration-200 transition">
-              <IoPaperPlaneOutline
-                size={20}
-                className="text-neutral-500 transition-colors"
-              />
+            </div>
+
+            <button className="group flex items-center justify-center p-2 duration-200 rounded-full hover:bg-neutral-600/15 transition">
+              <IoPaperPlaneOutline size={20} className="text-neutral-500 transition-colors" />
             </button>
           </div>
         </div>
       </div>
+
       <PostOptionsModal
         isOpen={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
@@ -578,7 +571,7 @@ const Post = ({
         onDelete={handleDeletePost}
         postId={id}
       />
-      </div>
+    </div>
   );
 };
 

@@ -132,12 +132,13 @@ const ThreadPage = () => {
                                 image={ancestor.image}
                                 autor={ancestor.autor}
                                 createdAt={ancestor.createdAt}
-                                
+                                isRepostByMe={ancestor.isRepostByMe}
                                 repliesCount={ancestor.repliesCount}
+                                replyName={ancestor.replyName}
                                stats={{
                 likes: ancestor.likesCount || ancestor.stats?.likes || ancestor._count?.reactions || 0,
                 dislike: 0,
-                
+                reposts:ancestor.stats?.reposts || ancestor._count?.reposts || 0,
                 comments: ancestor.repliesCount || ancestor.stats?.comments || ancestor._count?.comments || 0
                 
             }}
@@ -160,10 +161,14 @@ const ThreadPage = () => {
                             createdAt={post.createdAt}
                             type={post.type}
                             repliesCount={post.repliesCount}
+                            isRepostByMe={post.isRepostByMe}
+                            replyName={post.replyName}
+                            repostCount={post.repostCount}
                             stats={{
                                 likes:post.likesCount || post.stats?.likes || post._count?.reactions || 0,
                                 dislike: 0,
-                                comments:post.repliesCount|| post.stats?.comments || post._count?.comments || 0
+                                comments:post.repliesCount|| post.stats?.comments || post._count?.comments || 0,
+                                reposts:post.stats?.reposts || post._count?.reposts || 0,
                             }}
                             isLiked={post.isLiked}
                             isFollowing={post.isFollowing}

@@ -367,6 +367,7 @@ const Profile = () => {
                             createdAt={post.createdAt}
                             isLiked={post.isLiked}
                             isFollowing={post.isFollowing}
+                            replyName={post.replyName}
                             repostCount={post._count?.reposts || 0}
                             stats={{
                                 likes: post._count?.reactions || 0,
@@ -586,6 +587,7 @@ const Profile = () => {
                             createdAt={post.createdAt}
                             isLiked={post.isLiked}
                             isFollowing={post.isFollowing}
+                            replyName={post.replyName}
                             stats={{
                               likes: post._count?.reactions || 0,
                               dislike: 0,
@@ -644,6 +646,7 @@ const Profile = () => {
                       isLiked={post.isLiked}
                       isFollowing={post.autor?.isFollowing}
                       isRepostByMe={post.isRepostedByMe} 
+                      replyName={post.replyName}
                       repostCount={post.stats?.reposts || 0}
                       stats={{
                         likes: post.stats?.likes || 0,

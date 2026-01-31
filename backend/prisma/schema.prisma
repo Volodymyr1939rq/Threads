@@ -51,6 +51,8 @@ model Post {
   originalPostId String?
   originalPost Post?  @relation("Reposts",fields: [originalPostId],references: [id],onDelete:Cascade)
   reposts      Post[] @relation("Reposts")
+  originalCommentId String?
+  originalComment Comment? @relation("CommentRepostRelation",fields:[originalCommentId],references:[id],onDelete: Cascade)
   reactions    Reactions[]
   comments     Comment[]
   notifications Notifications[]
@@ -102,7 +104,7 @@ model Comment{
   postId       String
   
   parentId     String?
-
+  reposts      Post[]  @relation("CommentRepostRelation")
   parent       Comment? @relation("CommentChildren",fields: [parentId],references: [id])
 
   children     Comment[] @relation("CommentChildren")

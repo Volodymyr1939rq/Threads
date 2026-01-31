@@ -32,7 +32,7 @@ export class PostService {
         }
     }
 
-    async getAllPosts(query: paginationDto, currentUserId: string) {
+   async getAllPosts(query: paginationDto, currentUserId: string) {
         try {
             const page = query.page || 1;
             const limit = query.limit || 10;
@@ -56,15 +56,23 @@ export class PostService {
                     where: whereConditional,
                     include: {
                         autor: { select: { id: true, name: true, avatarPath: true } },
-                        originalPost:{
-                            include:{
-                                autor:{select:{id:true,name:true,avatarPath:true}},
-                                _count:{select:{reactions:true,comments:true,reposts:true}},
-                                reactions:{where:{userId:currentUserId,isLiked:true},select:{id:true}},
-                                reposts:{where:{autorId:currentUserId},select:{id:true}}
+                        originalPost: {
+                            include: {
+                                autor: { select: { id: true, name: true, avatarPath: true } },
+                                _count: { select: { reactions: true, comments: true, reposts: true } },
+                                reactions: { where: { userId: currentUserId, isLiked: true }, select: { id: true } },
+                                reposts: { where: { autorId: currentUserId }, select: { id: true } }
                             }
                         },
-                        _count: { select: { reactions: { where: { isLiked: true } }, comments: true ,reposts:true} },
+                        originalComment: {
+                            include: {
+                                autor: { select: { id: true, name: true, avatarPath: true } },
+                                _count: { select: { reactions: true, children: true, reposts: true } },
+                                reactions: { where: { userId: currentUserId, isLiked: true }, select: { id: true } },
+                                reposts: { where: { autorId: currentUserId }, select: { id: true } }
+                            }
+                        },
+                        _count: { select: { reactions: { where: { isLiked: true } }, comments: true, reposts: true } },
                         reactions: {
                             where: {
                                 userId: currentUserId,
@@ -72,11 +80,11 @@ export class PostService {
                             },
                             select: { id: true }
                         },
-                        reposts:{
-                            where:{
-                                autorId:currentUserId,
+                        reposts: {
+                            where: {
+                                autorId: currentUserId
                             },
-                            select:{id:true}
+                            select: { id: true }
                         }
                     }
                 }),
@@ -90,36 +98,61 @@ export class PostService {
                 })
                 follows.forEach(f => followedIds.add(f.followingId))
             }
-            const postWithStatus = posts.map(post => {
-                const isRepost=!!post.originalPost
-                const contentPost=(post.originalPost || post) as any;
-                const isFollowingAutor=followedIds.has(contentPost.autor.id)
-                return {
-                    id:post.id,
-                    createdAt:post.createdAt,
 
-                    title:contentPost.title,
-                    description:contentPost.description,
-                    image:contentPost.image,
-                    autor:{
+    
+            const validPosts = posts.filter(post => 
+                post.title !== null || post.originalPost || post.originalComment
+            );
+
+            const postWithStatus = validPosts.map(post => {
+                const isRepost = !!post.originalPost || !!post.originalComment
+                
+                let replyName:string| null=null;
+                if(post.originalComment){
+                    replyName=post.originalComment.autor.name
+                }
+                const contentPost = (post.originalPost || post.originalComment || post) as any;
+                
+                const isFollowingAutor = followedIds.has(contentPost.autor.id)
+                
+                
+                const displayTitle = contentPost.title || contentPost.content;
+
+                
+                const likesCount = contentPost._count?.reactions ?? 0
+                const commentsCount = (contentPost as any)._count?.children ?? contentPost._count?.comments ?? 0
+                const repostsCount = contentPost._count?.reposts ?? 0
+
+                return {
+                    id: post.id,
+                    createdAt: post.createdAt,
+
+                    title: displayTitle, 
+                    description: (contentPost as any).description,
+                    image: (contentPost as any).image,
+                    replyName:replyName,
+                    autor: {
                         ...contentPost.autor,
-                        isFollowing:isFollowingAutor,
+                        isFollowing: isFollowingAutor,
                     },
-                    stats:{
-                        likes:contentPost._count.reactions,
-                        comments:contentPost._count.comments,
-                        reposts:contentPost._count.reposts || 0
+
+                    stats: {
+                        likes: likesCount,
+                        comments: commentsCount,
+                        reposts: repostsCount
                     },
-                    isLiked:contentPost.reactions.length>0,
-                    isRepostByMe:contentPost.reposts.length>0,
-                    isRepost:isRepost
+
+                    isLiked: contentPost.reactions.length > 0,
+                    isRepostByMe: contentPost.reposts.length > 0,
+                    isRepost: isRepost,
+                    type: post.originalComment ? 'comment' : 'post'
                 }
             })
 
             return {
                 data: postWithStatus,
                 meta: {
-                    total,
+                    total, 
                     page,
                     lastPage: Math.ceil(total / limit)
                 }
@@ -137,19 +170,20 @@ export class PostService {
             where: { id },
             include: {
                 autor: { select: { id: true, name: true, email: true, avatarPath: true, } },
+                
                 reactions: {
                     where: { userId: userId, isLiked: true },
                     select: { id: true }
                 },
                 _count: {
-                    select: { reactions: true, comments: true }
+                    select: { reactions: true, comments: true ,reposts:true}
                 },
                 comments: {
                     orderBy: { createdAt: 'desc' },
                     include: {
                         autor: { select: { id: true, name: true, avatarPath: true } },
                         reactions: { where: { userId: userId, isLiked: true }, select: { id: true } },
-                        _count: { select: { reactions: true, children: true } },
+                        _count: { select: { reactions: true, children: true,reposts:true} },
                     }
                 }
             }
@@ -198,10 +232,10 @@ export class PostService {
             stats: {
                 likes: comment._count?.reactions || 0,
                 dislike: 0,
-                comments: repliesCount
+                comments: repliesCount,
+                reposts:comment._count?.reposts || 0
             },
-            _count: comment._count,
-            children: [] as any[]
+            children: [] 
         };
     });
 
@@ -226,7 +260,7 @@ export class PostService {
     };
 }
     private buildCommentTree(comments: any[]) {
-        const commentMap = {};
+        const commentMap: {[key:string]:any}={};
         const rootComments: any[] = [];
        
         comments.forEach((comment) => {
@@ -235,16 +269,12 @@ export class PostService {
 
         comments.forEach((comment) => {
             if (comment.parentId) {
-               
                 const parent = commentMap[comment.parentId];
                 if (parent) {
+                   
                     parent.children.push(comment);
-                } else {
-                  
-                    console.warn(`Orphan comment found: ${comment.id}`);
-                }
+                } 
             } else {
-              
                 rootComments.push(comment);
             }
         });
@@ -449,7 +479,7 @@ export class PostService {
     async getAllAutorsPosts(targetUserId: string, currentUserId: string) {
         try {
             const posts = await this.databaseService.post.findMany({
-                where: { autorId: targetUserId,originalPostId:null },
+                where: { autorId: targetUserId,originalPostId:null,originalCommentId:null},
                 orderBy: {
                     createdAt: 'desc'
                 },
@@ -457,17 +487,7 @@ export class PostService {
                     autor: {
                         select: { id: true, name: true, email: true, avatarPath: true }
                     },
-                    originalPost:{
-                        include:{
-                            autor:{
-                                select:{id:true,name:true,avatarPath:true},
-                            },
-                            _count:{select:{reactions:true,comments:true,reposts:true}
-                        },
-                        reactions:{where:{userId:currentUserId,isLiked:true},select:{id:true}},
-                        reposts:{where:{autorId:currentUserId},select:{id:true}}
-                    }
-                    },
+                   
                     _count:{select:{reactions:true,comments:true,reposts:true}},
                     reactions: {
                         where: { userId: currentUserId, isLiked: true },
@@ -483,43 +503,30 @@ export class PostService {
                 })
                 isFollowingAutor = !!follow
             }
-            return posts.map(post => {
-                const isRepost=!!post.originalPost
-                const contentPost=(post.originalPost || post) as any;
-
+            
+                return posts.map(post => {
                 return {
-                    id:post.id,
-                    createdAt:post.createdAt,
-                    title:contentPost?.title,
-                    image:contentPost?.image,
-                    description:contentPost?.description,
-                    autor:{
+                    id: post.id,
+                    createdAt: post.createdAt,
+                    title: post.title,
+                    image: post.image,
+                    description: post.description,
+                    
+                    autor: {
                         ...post.autor,
-                        isFollowing:isFollowingAutor
+                        isFollowing: isFollowingAutor 
                     },
-                    originalPost:isRepost ? {
-                        id:contentPost?.id,
-                        title:contentPost?.title,
-                        image:contentPost?.image,
-                        createdAt:contentPost?.createdAt,
-                        autor:contentPost?.autor,
-                        stats:{
-                            likes:contentPost?._count.reactions,
-                            comments:contentPost?._count.comments,
-                            reposts:contentPost?._count.reposts
-                        },
-                        isLiked:contentPost.reactions.length>0,
-                        isRepostByMe:contentPost.reposts && contentPost.reposts.length>0
-                    }:null,
-                    isLiked:contentPost.reactions.length>0,
-                    isReposted:contentPost.reposts.length>0,
-                    stats:{
-                        likes:contentPost._count.reactions,
-                        comments:contentPost._count.comments,
-                        reposts:contentPost._count.repost
+                    
+                    stats: {
+                        likes: post._count.reactions,
+                        comments: post._count.comments,
+                        reposts: post._count.reposts
                     },
-                    reactions:undefined,
-                    _count:undefined,
+                    
+                    isLiked: post.reactions.length > 0,
+                    isRepostByMe: false,
+                    isRepost: false,     
+                    type: 'post'
                 }
             })
         } catch(error) {
@@ -621,97 +628,170 @@ export class PostService {
         return null;
     }
 
-    async toggleReposts(userId:string,postId:string){
-        const existRepost=await this.databaseService.post.findFirst({
-            where:{
-                autorId:userId,
-                originalPostId:postId
+   async toggleReposts(userId: string, incomingId: string) {
+       
+        const potentialMyPost = await this.databaseService.post.findUnique({
+            where: { id: incomingId }
+        });
+
+        if (potentialMyPost && potentialMyPost.autorId === userId) {
+            
+            const isRepost = potentialMyPost.title === null || potentialMyPost.originalPostId || potentialMyPost.originalCommentId;
+            
+            if (isRepost) {
+                console.log('🗑 DELETING MY OWN REPOST DIRECTLY.');
+                await this.databaseService.post.delete({
+                    where: { id: incomingId }
+                });
+                return { existRepost: false };
             }
-        })
-        if(existRepost){
+        }
+
+        let targetId = incomingId;
+        let isComment = false; 
+
+        if (potentialMyPost) {
+            if (potentialMyPost.originalPostId) {
+                targetId = potentialMyPost.originalPostId;
+            } else if (potentialMyPost.originalCommentId) {
+                targetId = potentialMyPost.originalCommentId;
+                isComment = true;
+            }
+        } else {
+         
+            const potentialComment = await this.databaseService.comment.findUnique({ where: { id: incomingId }});
+            if (potentialComment) {
+                isComment = true;
+            }
+        }
+
+        const existingRepost = await this.databaseService.post.findFirst({
+            where: {
+                autorId: userId,
+                OR: [
+                    { originalPostId: targetId },
+                    { originalCommentId: targetId }
+                ]
+            }
+        });
+
+        if (existingRepost) {
+            
             await this.databaseService.post.delete({
-                where:{
-                  id:existRepost.id
+                where: { id: existingRepost.id }
+            });
+            return { existRepost: false };
+        } else {
+            const createData: any = {
+                autor: { connect: { id: userId } },
+                title: null,
+                image: null,
+                description: null
+            };
+
+            if (isComment) {
+                createData.originalComment = { connect: { id: targetId } };
+            } else {
+                const originalPostExists = await this.databaseService.post.findUnique({ where: { id: targetId }});
+                if (!originalPostExists) {
+                     return { existRepost: false };
                 }
-            })
-            return {existRepost:false}
-        }else{
+                createData.originalPost = { connect: { id: targetId } };
+            }
+
             await this.databaseService.post.create({
-                data:{
-                    title:null,
-                    image:null,
-                    autorId:userId,
-                    originalPostId:postId
-                }
-            })
-            return {existRepost:true}
+                data: createData
+            });
+            
+            return { existRepost: true };
         }
     }
-    async getUsersReposts(userId:string,currentUserId:string){
-        const reposts=await this.databaseService.post.findMany({
-            where:{
-                autorId:userId,
-                originalPostId:{not:null}
+    async getUsersReposts(userId: string, currentUserId: string) {
+        const reposts = await this.databaseService.post.findMany({
+            where: {
+                autorId: userId,
+                OR: [
+                    { originalPostId: { not: null } },
+                    { originalCommentId: { not: null } }
+                ]
             },
-            orderBy:{
-                createdAt:'desc'
+            orderBy: {
+                createdAt: 'desc'
             },
-            include:{
-                originalPost:{
-                    include:{
-                        autor:{
-                            select:{id:true,name:true,avatarPath:true}
-                        },
-                        _count:{
-                            select:{reactions:true,comments:true,reposts:true}
-                        },
-                        reactions:{
-                            where:{userId:currentUserId,isLiked:true},
-                            select:{id:true}
-                        },
-                        reposts:{
-                            where:{autorId:currentUserId},
-                            select:{id:true}
-                        }
+            include: {
+               
+                originalPost: {
+                    include: {
+                        autor: { select: { id: true, name: true, avatarPath: true } },
+                        _count: { select: { reactions: true, comments: true, reposts: true } },
+                        reactions: { where: { userId: currentUserId, isLiked: true }, select: { id: true } },
+                        reposts: { where: { autorId: currentUserId }, select: { id: true } }
+                    }
+                },
+                
+                originalComment: {
+                    include: {
+                        autor: { select: { id: true, name: true, avatarPath: true } },
+                        _count: { select: { reactions: true, children: true, reposts: true } },
+                        reactions: { where: { userId: currentUserId, isLiked: true }, select: { id: true } },
+                        reposts: { where: { autorId: currentUserId }, select: { id: true } }
                     }
                 }
             }
         })
-        const followedIds=new Set<string>()
-        if(currentUserId){
-            const follows=await this.databaseService.follows.findMany({
-                where:{followerId:currentUserId},
-                select:{followingId:true}
+
+        const followedIds = new Set<string>()
+        if (currentUserId) {
+            const follows = await this.databaseService.follows.findMany({
+                where: { followerId: currentUserId },
+                select: { followingId: true }
             })
-            follows.forEach(f=>followedIds.add(f.followingId))
+            follows.forEach(f => followedIds.add(f.followingId))
         }
-        return reposts.map((repost)=>{
-            const original=repost.originalPost
 
-            if(!original) return null
-            const isFollowingAutor=followedIds.has(original.autor.id)
-            return {
-                repostId:repost.id,
-                id:original.id,
-                title:original.title,
-                description:original.description,
-                image:original.image,
-                createdAt:original.createdAt,
-                autor:{
-                    ...original.autor,
-                    isFollowing:isFollowingAutor
-                },
-                stats:{
-                    likes:original._count.reactions,
-                    comments:original._count.comments,
-                    reposts:original._count.reposts
-                },
-                isLiked:original.reactions.length>0,
-                isRepostedByMe:original.reposts.length>0,
+        return reposts.map((repost) => {
+            
+            const original = repost.originalPost || repost.originalComment;
 
-                reactions:undefined,
-                _count:undefined
+            if (!original) return null
+            
+            const isFollowingAutor = followedIds.has(original.autor.id)
+         
+            const title = (original as any).title || (original as any).content;
+            
+          
+           
+const commentsCount = (original as any)._count.children ?? (original as any)._count.comments ?? 0;
+            let replyName:string | null=null;
+            if(repost.originalComment){
+                replyName=repost.originalComment.autor.name
             }
-        }).filter(item=>item !==null)
+            return {
+                repostId: repost.id, 
+                id: original.id,     
+                
+                title: title,
+                description: (original as any).description, 
+                image: (original as any).image,             
+                replyName:replyName,
+                createdAt: original.createdAt,
+                
+                autor: {
+                    ...original.autor,
+                    isFollowing: isFollowingAutor
+                },
+                stats: {
+                    likes: original._count.reactions,
+                    comments: commentsCount,
+                    reposts: original._count.reposts
+                },
+                
+                isLiked: original.reactions.length > 0,
+                isRepostedByMe: original.reposts.length > 0,
+                
+                
+                type: repost.originalComment ? 'comment' : 'post'
+            }
+        }).filter(item => item !== null)
     }
 }

@@ -18,13 +18,18 @@ interface CommentData {
     _count:{
         reactions:number;
         comments?:number;
-        children:number
+        children:number;
+        reposts?:number;
     };
     children?:CommentData[];
     isLiked?:boolean;
+    isRepostByMe?:boolean;
     isFollowing?:boolean;
     likesCount?:number;
-    stats?:{likes:number}
+    stats?:{likes:number,
+        comments?:number,
+        reposts?:number,
+    }
 }
 interface CommentTreeProps{
     comment:CommentData,
@@ -39,7 +44,8 @@ const hasReplies=comment.children && comment.children.length>0
 const postStats={
     likes:comment.likesCount ||comment.stats?.likes || comment._count?.reactions || 0,
     dislike:0,
-    comments:comment.repliesCount ?? comment._count?.children ?? comment.children?.length ?? 0
+    comments:comment.repliesCount ?? comment._count?.children ?? comment.children?.length ?? 0,
+    reposts:comment.stats?.reposts ?? comment._count?.reposts ?? 0
 }
 return (
     <div className="flex flex-col">
@@ -53,6 +59,7 @@ return (
             createdAt={comment.createdAt}
             isLiked={comment.isLiked || false}
             isFollowing={comment.isFollowing}
+            isRepostByMe={comment.isRepostByMe}
             stats={postStats}
             isMainPost={false}
             hasThreadLine={hasReplies && isExpanded}

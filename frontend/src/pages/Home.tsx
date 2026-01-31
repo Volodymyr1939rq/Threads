@@ -28,7 +28,7 @@ interface PostData {
         avatarPath: string;
         isFollowing:boolean;
     };
-
+    replyName:string | null;
     stats?: {
         likes: number;
         comments: number;
@@ -231,6 +231,7 @@ const Home = ({ refresh }: HomeProps) => {
                                     reposts: post.stats?.reposts ?? post._count?.reposts ?? 0 
                                 }}
                                 isLiked={post.isLiked}
+                                replyName={post.replyName}
                                 isRepostByMe={post.isRepostByMe} 
                                 repostCount={post.stats?.reposts ?? post._count?.reposts ?? 0}
                                 isFollowing={post.autor.isFollowing}

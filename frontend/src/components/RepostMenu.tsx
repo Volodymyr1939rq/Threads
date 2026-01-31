@@ -13,9 +13,10 @@ interface RepostMenuProps {
   onClose: () => void; 
   updateState: (newIsReposted: boolean, newCount: number) => void;
   currentCount: number;
+  type?:string;
 }
 
-const RepostMenu = ({ postId, isReposted, onClose, updateState, currentCount }: RepostMenuProps) => {
+const RepostMenu = ({ postId, isReposted, onClose, updateState, currentCount,type='post' }: RepostMenuProps) => {
   const queryClient = useQueryClient();
   const API_URL = "http://localhost:3000";
 
@@ -36,7 +37,8 @@ const RepostMenu = ({ postId, isReposted, onClose, updateState, currentCount }: 
 
     try {
       const token = Cookies.get("token");
-      const res = await fetch(`${API_URL}/post/${postId}/repost`, {
+      const endpoint=type==='comment' ? 'comment' : 'post'
+      const res = await fetch(`${API_URL}/${endpoint}/${postId}/repost`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
