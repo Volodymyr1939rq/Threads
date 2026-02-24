@@ -335,10 +335,7 @@ export class CommentService {
     }
 
 async repostComment(userId: string, incomingId: string) {
-        console.log('🚀 REPOST ACTION via ID:', incomingId);
-
-        // 1. СЦЕНАРІЙ "ВИДАЛЕННЯ": Юзер клікнув на свій власний пост/репост
-        // Це спрацьовує, коли ти видаляєш репост зі стрічки або профілю.
+        
         const myPost = await this.databaseService.post.findUnique({
             where: { id: incomingId }
         });
@@ -350,27 +347,22 @@ async repostComment(userId: string, incomingId: string) {
             });
             return { isReposted: false };
         }
-
-        // 2. СЦЕНАРІЙ "СТВОРЕННЯ/TOGGLE": Юзер клікнув на коментар або чужий пост
         let targetCommentId = incomingId;
 
-        // Якщо це чужий репост - дістаємо з нього ID коментаря
+    
         if (myPost && myPost.originalCommentId) {
             targetCommentId = myPost.originalCommentId;
         }
 
-        // 🔥 ЗАХИСТ: Перевіряємо, чи існує коментар, який ми хочемо репостнути.
-        // Якщо коментаря немає (або ID неправильний) - ми НІЧОГО не створюємо.
         const commentExists = await this.databaseService.comment.findUnique({
             where: { id: targetCommentId }
         });
 
         if (!commentExists) {
-            console.log('❌ Error: Target comment does not exist. Aborting.');
+           
             return { isReposted: false };
         }
 
-        // 3. Стандартна перевірка дублікатів (на випадок повторних кліків)
         const existingRepost = await this.databaseService.post.findFirst({
             where: {
                 autorId: userId,
@@ -379,11 +371,11 @@ async repostComment(userId: string, incomingId: string) {
         });
 
         if (existingRepost) {
-            console.log('🔄 Found existing repost via Content ID. Deleting...');
+            
             await this.databaseService.post.delete({ where: { id: existingRepost.id } });
             return { isReposted: false };
         } else {
-            console.log('➕ Creating NEW repost.');
+            
             await this.databaseService.post.create({
                 data: {
                     autor: { connect: { id: userId } },

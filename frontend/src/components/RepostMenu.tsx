@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import Cookies from "js-cookie";
-import toast from "react-hot-toast";
+
 import { 
   IoRepeatOutline, 
   IoTrashOutline, 
@@ -29,12 +29,6 @@ const RepostMenu = ({ postId, isReposted, onClose, updateState, currentCount,typ
 
     updateState(newRepostState, newCount);
 
-    if (newRepostState) {
-      toast.success("Репостнуто у ваш профіль", { icon: "🔁", duration: 2000 });
-    } else {
-      toast("Репост видалено", { icon: "🗑️", duration: 2000 });
-    }
-
     try {
       const token = Cookies.get("token");
       const endpoint=type==='comment' ? 'comment' : 'post'
@@ -53,14 +47,14 @@ const RepostMenu = ({ postId, isReposted, onClose, updateState, currentCount,typ
     } catch (error) {
       console.error("Repost error:", error);
       updateState(!newRepostState, currentCount); 
-      toast.error("Не вдалося зробити репост");
+     
     }
   };
 
   const handleQuoteAction = (e: React.MouseEvent) => {
     e.stopPropagation();
     onClose();
-    toast("Функція цитування скоро буде!", { icon: "📝" });
+ 
   };
 
   return (

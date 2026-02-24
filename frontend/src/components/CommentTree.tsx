@@ -11,8 +11,7 @@ interface CommentData {
     autor:{
         id:string;
         name:string;
-        avatarPath:string;
-        
+        avatarPath:string; 
     };
     repliesCount?:number,
     _count:{
@@ -38,7 +37,7 @@ interface CommentTreeProps{
 
 const CommentTree=({comment,rootPostId}:CommentTreeProps)=>{
 const [isExpanded, setIsExpanded] = useState(false);
- const navigate=useNavigate()
+const navigate=useNavigate()
 const hasReplies=comment.children && comment.children.length>0
 
 const postStats={
@@ -67,7 +66,7 @@ return (
             repliesCount={comment.repliesCount}
             rootPostId={rootPostId}
             onClick={()=>{navigate(`/post/${comment.id}`);
-            window.scrollTo(0,0)}}></Post>
+            window.scrollTo(0,0)}} />
         </div>
         {hasReplies && (
                 <div className="flex flex-col">
