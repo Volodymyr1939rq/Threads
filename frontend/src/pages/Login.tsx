@@ -11,7 +11,6 @@ const Login=()=>{
     const handleLogin=async (e:any)=>{
        e.preventDefault()
        setError('')
-    console.log("Що ми відправляємо:", { email, password });
        try {
         const response=await fetch(`${API_URL}/auth/login`,{
            method:'POST',
@@ -24,7 +23,10 @@ const Login=()=>{
             throw new Error('Невірний email або password')
         }
         const data=await response.json()
-
+        const token=data.accessToken || data.token?.accessToken || data.token
+        if(!token){
+            throw new Error('не вдалося отримати токен від сервера')
+        }
         Cookies.set("token",data.token.accessToken,{
             expires:7,
             secure:true,
@@ -37,7 +39,7 @@ const Login=()=>{
        }
     }
     return (
-        <div className="min-h-screen flex flex-col justify-beetwen items-center relative overflow-hidden">
+        <div className="min-h-screen flex flex-col justify-between items-center relative overflow-hidden">
           <div className="w-full max-w-[370px] flex flex-col items-center mt-40 px-4 gap-4">
             <h2 className="text-white font-semibold ">Увійти через Instagram </h2>
              <form onSubmit={handleLogin} className="w-full flex flex-col gap-3">
@@ -47,7 +49,7 @@ const Login=()=>{
                 placeholder="Введіть email,номер користувача або телефон"
                 value={email}
                 onChange={(e)=>setEmail(e.target.value)}
-                className="w-full bg-[#1E1E1E] text-white p-4 rounded-xl border border-[#333] placeholder-[#777] focus:border-[555] focus:outline-none transition-colors"
+                className="w-full bg-[#1E1E1E] text-white p-4 rounded-xl border border-[#333] placeholder-[#777] focus:border-[#555] focus:outline-none transition-colors"
                 required
                 />
 
