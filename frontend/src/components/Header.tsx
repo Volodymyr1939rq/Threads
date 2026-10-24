@@ -24,7 +24,11 @@ const Header = ({ onOpenCreate,onOpenFab }: HeaderProps) => {
     const isSearchActive = pathname === '/search'
     const isActivityActive = pathname === '/activity'
     const isProfileActive = pathname.includes('/profile') 
-
+    const token=Cookies.get('token')
+    const isAuthenticated=Boolean(token && token!==undefined)
+    if(pathname==='/login'){
+        return null
+    }
     const handleOpenProfile = () => {
         const token = Cookies.get('token')
         if (!token) {
@@ -100,9 +104,12 @@ const Header = ({ onOpenCreate,onOpenFab }: HeaderProps) => {
             <div className="flex flex-col items-center pr-4 pt-18">
                 <HiBars2 size={28} className="text-[#616161] transition-colors duration-300 hover:text-white cursor-pointer"/>
             </div>
+            {isAuthenticated && (
+
             <div onClick={onOpenFab} className="fixed bottom-6 right-7 w-21 h-17 rounded-2xl bg-[#181818] border border-neutral-700 flex items-center justify-center active:scale-95 transition hover:scale-110">
                 <FiPlus size={28} strokeWidth={3} className="text-white"/>
             </div>
+            )}
         </div>
     )
 }
