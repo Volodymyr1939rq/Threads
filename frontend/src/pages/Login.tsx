@@ -54,11 +54,13 @@ const Login=()=>{
                 />
 
                 <input 
-                type="password"
+                type="text"
                 placeholder="Введіть пароль"
                 value={password}
                 onChange={(e)=>setPassword(e.target.value)}
-                className="w-full bg-[#1E1E1E] text-white p-4 rounded-xl border border-[#333] placeholder-[#777] focus:border-[555] focus:outline-none transition-colors"
+                data-1p-ignore="true"
+                data-lpignore="true"
+                className="w-full bg-[#1E1E1E] text-white p-4 rounded-xl border border-[#333] placeholder-[#777] focus:border-[555] focus:outline-none transition-colors [-webkit-text-security:disc]"
                 required
                 />
                 {error && <p className="text-red-500 text-sm text-center">{error}</p>}
