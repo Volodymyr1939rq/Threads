@@ -3,7 +3,7 @@ import { CommentService } from './comment.service';
 import { CommentController } from './comment.controller';
 import { DatabaseService } from 'src/database/database.service';
 import { PostService } from 'src/post/post.service';
-import { StorageService } from 'storage.service';
+import { StorageService } from 'src/common/storage.service';
 
 
 @Module({

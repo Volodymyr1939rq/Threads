@@ -2,7 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { DatabaseService } from 'src/database/database.service';
 import { postDto } from './Dto/PostDto';
 import { paginationDto } from './Dto/paginationDto';
-import { StorageService } from 'storage.service';
+import { StorageService } from 'src/common/storage.service';
 import "multer"
 @Injectable()
 export class PostService {

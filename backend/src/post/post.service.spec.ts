@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PostService } from './post.service';
 import { DatabaseService } from 'src/database/database.service';
-import { StorageService } from 'storage.service';
+import { StorageService } from 'src/common/storage.service';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { v4 } from 'uuid';
 jest.mock('uuid',()=>({

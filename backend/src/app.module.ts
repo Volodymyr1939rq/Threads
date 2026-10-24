@@ -8,7 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { CommentModule } from './comment/comment.module';
 import { ChatModule } from './chat/chat.module';
 import { ConfigModule } from '@nestjs/config';
-import { StorageService } from 'storage.service';
+import { StorageService } from 'src/common/storage.service';
 
 
 @Module({

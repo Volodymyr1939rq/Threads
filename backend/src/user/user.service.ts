@@ -3,7 +3,7 @@ import { DatabaseService } from 'src/database/database.service';
 import { userDto } from 'src/user/dto/UserDto';
 import * as bcrypt from 'bcrypt';
 import { Usersearchdto } from './dto/UserSearchDto';
-import { StorageService } from 'storage.service';
+import { StorageService } from 'src/common/storage.service';
 
 
 @Injectable()
