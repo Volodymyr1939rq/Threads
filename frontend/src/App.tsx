@@ -1,14 +1,16 @@
 import { Route, Routes} from "react-router-dom"
-import Home from "./pages/Home"
-import Login from "./pages/Login"
-import Profile from "./pages/ProfilePage"
 import Header from "./components/Header"
-import { useState } from "react"
+import { lazy, Suspense, useState } from "react"
 import ThreadsModal from "./components/CreateThreadModal"
-import Search from "./pages/Search"
-import Activity from "./pages/Activity"
-import ThreadPage from "./pages/ThreadPage"
+import Loader from "./components/Loader"
 
+
+const Home=lazy(()=>import("./pages/Home"))
+const Login=lazy(()=>import("./pages/Login"))
+const Profile=lazy(()=>import("./pages/ProfilePage"))
+const Search=lazy(()=>import("./pages/Search"))
+const Activity=lazy(()=>import("./pages/Activity"))
+const ThreadPage=lazy(()=>import("./pages/ThreadPage"))
 function App() {
 
 const [isDefaultModal,setIsDefaultModal]=useState(false)
@@ -25,19 +27,30 @@ const handleCreatedPost=(source:'default' | 'fab')=>{
 }
   return (
     <div>
-      <Header onOpenCreate={()=>setIsDefaultModal(true)} onOpenFab={()=>setIsFabOpen(true)}></Header>
+      <Header 
+      onOpenCreate={()=>setIsDefaultModal(true)} 
+      onOpenFab={()=>setIsFabOpen(true)}/>
+
+      <Suspense fallback={
+        <div className="flex items-center justify-center h-[calc(100vh-70px)] w-full bg-black">
+          <Loader size={32} className="animate-spin text-white"/>
+        </div>
+      }
+      >
       <Routes>
         <Route path="/" element={<Home refresh={refreshTrigger}/>} />
         <Route path="/login" element={<Login/>}/>
-        <Route path="/profile/:id" element={<Profile/>}></Route>
-        <Route path="/search" element={<Search/>}></Route>
-        <Route path="/activity" element={<Activity/>}></Route>
-        <Route path="/post/:id" element={<ThreadPage/>}></Route>
+        <Route path="/profile/:id" element={<Profile/>}/>
+        <Route path="/search" element={<Search/>}/>
+        <Route path="/activity" element={<Activity/>}/>
+        <Route path="/post/:id" element={<ThreadPage/>}/>
       </Routes>
+      </Suspense>
       {isDefaultModal  && (
         <ThreadsModal 
         variant={'default'}
-        onClose={()=>setIsDefaultModal(false)} onPostCreated={()=>handleCreatedPost('default')}></ThreadsModal>
+        onClose={()=>setIsDefaultModal(false)} 
+        onPostCreated={()=>handleCreatedPost('default')}/>
       )}
       {isFabOpen && (
         <ThreadsModal 

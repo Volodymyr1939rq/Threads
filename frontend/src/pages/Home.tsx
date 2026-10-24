@@ -8,13 +8,13 @@ import SnowFall from "../components/SnowFall";
 import { useNavigate } from "react-router-dom";
 import UserProfileModal from "../components/UserProfileModal";
 import { useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
+import Loader from "../components/Loader";
 
-const API_URL = 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL
 
 interface HomeProps {
     refresh: number;
 }
-
 
 interface PostData {
     id: string;
@@ -26,9 +26,9 @@ interface PostData {
         id: string;
         name: string;
         avatarPath: string;
-        isFollowing:boolean;
+        isFollowing: boolean;
     };
-    replyName:string | null;
+    replyName: string | null;
     stats?: {
         likes: number;
         comments: number;
@@ -101,7 +101,6 @@ const Home = ({ refresh }: HomeProps) => {
         }
     }, [refresh, refetch]);
 
-
     const handleScroll = () => {
         if (!scrollRef.current) return
 
@@ -126,7 +125,14 @@ const Home = ({ refresh }: HomeProps) => {
                     ...page,
                     data: page.data.map((post: PostData) => {
                         if (post.autor.id === updatedUserId) {
-                            return { ...post, isFollowing: newStatus }
+                            return { 
+                                ...post, 
+                                isFollowing: newStatus,
+                                autor: {
+                                    ...post.autor,
+                                    isFollowing: newStatus
+                                }
+                            }
                         }
                         return post
                     })
@@ -139,7 +145,7 @@ const Home = ({ refresh }: HomeProps) => {
 
     return (
         <div className="bg-black h-screen w-full overflow-hidden flex flex-col text-white font-sans">
-            <div className={`duration-700 transition-opacity easy-in-out sticky top-0 z-0 ${showSnow ? 'opacity-100' : 'opacity-0'}`}>
+            <div className={`duration-700 transition-opacity ease-in-out sticky top-0 z-0 ${showSnow ? 'opacity-100' : 'opacity-0'}`}>
                 <SnowFall />
             </div>
             <style>{`
@@ -150,7 +156,7 @@ const Home = ({ refresh }: HomeProps) => {
             <div className="shrink-0 h-[50px] flex items-center justify-center pt-6 z-50 bg-transparent">
                 <div className="flex gap-8 font-bold text-[15px]">
                     <button onClick={() => setActiveTab('For You')}
-                        className={`font-semibold pb-3 px-4 transform-all relative
+                        className={`font-semibold pb-3 px-4 transition-all relative
                     ${activeTab === 'For You'
                                 ? 'text-white '
                                 : 'text-[#616161] hover:text-gray-300'
@@ -162,7 +168,7 @@ const Home = ({ refresh }: HomeProps) => {
                         )}
                     </button>
                     <button onClick={() => setActiveTab('following')}
-                        className={`font-semibold pb-3 px-4 transform-all relative
+                        className={`font-semibold pb-3 px-4 transition-all relative
                     ${activeTab === 'following'
                                 ? 'text-white'
                                 : 'text-[#616161] hover:text-gray-300'
@@ -182,10 +188,9 @@ const Home = ({ refresh }: HomeProps) => {
 
                 <div className="relative w-full mx-auto py-6 flex flex-col">
 
-
                     <div className="flex items-center justify-between h-14 py-2 px-4 mb-2">
                         <div className="h-full flex w-full items-center">
-                            <div onClick={() => user?.id && navigate(`/profile/${user?.id}`)} className="w-11 h-11 mr-4">
+                            <div onClick={() => user?.id && navigate(`/profile/${user?.id}`)} className="w-11 h-11 mr-4 cursor-pointer">
                                 <Avatar src={user?.avatar} className="rounded-full" alt="person" />
                             </div>
                             <input
@@ -197,7 +202,7 @@ const Home = ({ refresh }: HomeProps) => {
                             />
                         </div>
                         <button
-                            className="border border-[#333] rounded-xl px-5 py-1.5 font-bold text-white "
+                            className="border border-[#333] rounded-xl px-5 py-1.5 font-bold text-white"
                             onClick={() => setCreateOpenModal(true)}
                         >
                             Опублікувати
@@ -206,10 +211,11 @@ const Home = ({ refresh }: HomeProps) => {
 
                     <hr className="w-full border-b-[0.33px] border-neutral-800 mb-0" />
 
-
                     <div className="flex-1">
                         {status === 'pending' && (
-                            <div className="text-center py-8 text-gray-500">Завантаження...</div>
+                            <div className="flex justify-center mt-10">
+                                <Loader size={32} className="animate-spin text-white"/>
+                            </div>
                         )}
                         {status === 'error' && (
                             <div className="text-center py-8 text-gray-500">Помилка завантаження стрічки</div>
@@ -237,20 +243,20 @@ const Home = ({ refresh }: HomeProps) => {
                                 isFollowing={post.autor.isFollowing}
                                 onFollowChange={(id, status) => handleFollowUpdate(id, status)}
                                 onUserClick={(clickedUserId) => {
-                                    if (user?.id === clickedUserId || post.isFollowing) {
+                                    if (user?.id === clickedUserId || post.autor.isFollowing || post.isFollowing) {
                                         navigate(`/profile/${clickedUserId}`)
                                     } else {
                                         setSelectedUserId(clickedUserId)
                                     }
-                                }
-                                }
-
+                                }}
                             />
                         ))}
                         {isFetchingNextPage && (
-                            <div className="text-center py-4 text-gray-500">Завантаження нових постів...</div>
+                            <div className="flex justify-center py-6">
+                                <Loader size={26} className="animate-spin text-white"/>
+                            </div>
                         )}
-                        {hasNextPage && allPosts.length > 0 && (
+                        {!hasNextPage && allPosts.length > 0 && (
                             <div className="text-center py-10 text-[#616161] flex flex-col items-center gap-2">
                                 Це всі пости на сьогодні.
                             </div>
@@ -281,8 +287,6 @@ const Home = ({ refresh }: HomeProps) => {
                 )}
             </div>
         </div>
-
-
     )
 }
 

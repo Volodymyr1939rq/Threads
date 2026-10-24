@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import Cookies from "js-cookie"
+const API_URL=import.meta.env.VITE_API_URL
 const Login=()=>{
     const navigate=useNavigate()
     const [email,setEmail]=useState("")
@@ -12,7 +13,7 @@ const Login=()=>{
        setError('')
     console.log("Що ми відправляємо:", { email, password });
        try {
-        const response=await fetch("http://localhost:3000/auth/login",{
+        const response=await fetch(`${API_URL}/auth/login`,{
            method:'POST',
            headers:{
             "Content-Type":"application/json",

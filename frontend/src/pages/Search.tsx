@@ -10,10 +10,12 @@ import DatePicker, { registerLocale } from "react-datepicker";
 import { uk } from "date-fns/locale/uk"; 
 import { format } from 'date-fns';
 import "react-datepicker/dist/react-datepicker.css"; 
+import Loader from "../components/Loader";
+import { useQueryClient } from "@tanstack/react-query";
 
 registerLocale('uk', uk);
 
-const API_URL = 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL;
 
 interface UserResult {
     id: string;
@@ -22,63 +24,58 @@ interface UserResult {
     bio?: string;
     _count: {
         followedBy: number;
-    }
+    };
     isFollowing: boolean;
 }
 
 const Search = () => {
-    const [query, setQuery] = useState('')
-    const [results, setResults] = useState<UserResult[]>([])
-    const [loading, setLoading] = useState(false)
-    const [userToUnfollow, setUserToUnfollow] = useState<UserResult | null>(null)
-    const navigate = useNavigate()
-    
+    const [query, setQuery] = useState('');
+    const [results, setResults] = useState<UserResult[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [userToUnfollow, setUserToUnfollow] = useState<UserResult | null>(null);
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
-    const [isOpenFilterModal, setIsOpenFilterModal] = useState(false)
+    const [isOpenFilterModal, setIsOpenFilterModal] = useState(false);
+    const [openDatePicker, setOpenDatePicker] = useState<'start' | 'end' | null>(null);
     
-  
-    const [openDatePicker, setOpenDatePicker] = useState<'start' | 'end' | null>(null)
-    
-    
-    const [startDate, setStartDate] = useState<Date | null>(null)
-    const [endDate, setEndDate] = useState<Date | null>(null)
+    const [startDate, setStartDate] = useState<Date | null>(null);
+    const [endDate, setEndDate] = useState<Date | null>(null);
 
-    const filterRef = useRef<HTMLDivElement>(null)
-    const inputContainerRef = useRef<HTMLDivElement>(null)
-    const inputRef = useRef<HTMLInputElement>(null)
+    const filterRef = useRef<HTMLDivElement>(null);
+    const inputContainerRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
-    const token = Cookies.get('token')
+    const token = Cookies.get('token');
     let currentUserId = '';
     if (token) {
         try {
-            const payload = JSON.parse(atob(token.split('.')[1]))
-            currentUserId = payload.sub || payload.id
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            currentUserId = payload.sub || payload.id || payload.userId;
         } catch (e) {
-            console.error('Token decode error', e)
+            console.error('Token decode error', e);
         }
     }
 
-    
     useEffect(() => {
         const handleClickOutSide = (event: MouseEvent) => {
             if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
-                setIsOpenFilterModal(false)
+                setIsOpenFilterModal(false);
             }
-        }
-        document.addEventListener('mousedown', handleClickOutSide)
-        return () => document.removeEventListener('mousedown', handleClickOutSide)
-    }, [])
+        };
+        document.addEventListener('mousedown', handleClickOutSide);
+        return () => document.removeEventListener('mousedown', handleClickOutSide);
+    }, []);
 
-   
     useEffect(() => {
+      
+        setLoading(true);
+
         const fetchData = async () => {
-            setLoading(true)
             try {
-               
                 const params = new URLSearchParams({ limit: '10' });
                 
-                if (query) params.append('search', query);
-                
+                if (query.trim()) params.append('search', query.trim());
                 if (startDate) params.append('startDate', startDate.toISOString());
                 if (endDate) params.append('endDate', endDate.toISOString());
 
@@ -86,26 +83,26 @@ const Search = () => {
                 
                 const res = await fetch(url, {
                     headers: { 'Authorization': `Bearer ${token}` }
-                })
+                });
                 if (res.ok) {
-                    const data = await res.json()
-                    setResults(data.data || [])
+                    const data = await res.json();
+                    setResults(data.data || []);
                 }
             } catch (error) {
-                console.error(error)
+                console.error(error);
             } finally {
-                setLoading(false)
+                setLoading(false);
             }
-        }
+        };
        
-        const delayDebounce = setTimeout(fetchData, 300)
-        return () => clearTimeout(delayDebounce)
-    }, [query, startDate, endDate]) 
+        const delayDebounce = setTimeout(fetchData, 300);
+        return () => clearTimeout(delayDebounce);
+    }, [query, startDate, endDate, token]); 
 
     const handleFollow = async (userId: string, currentStatus: boolean) => {
         setResults(prev => prev.map(user => {
             if (user.id === userId) {
-                const newStatus = !currentStatus
+                const newStatus = !currentStatus;
                 return {
                     ...user,
                     isFollowing: newStatus,
@@ -115,36 +112,37 @@ const Search = () => {
                             ? user._count.followedBy + 1
                             : user._count.followedBy - 1
                     }
-                }
+                };
             }
-            return user
-        }))
+            return user;
+        }));
         try {
             await fetch(`${API_URL}/user/${userId}/follow`, {
                 method: 'POST',
                 headers: { "Authorization": `Bearer ${token}` }
-            })
+            });
+          
+            queryClient.invalidateQueries({ queryKey: ['posts', 'feed'] });
         } catch (error) {
-            console.error(error)
+            console.error(error);
         }
-    }
+    };
 
     const handleFollowClick = (user: UserResult) => {
         if (user.isFollowing) {
-            setUserToUnfollow(user)
+            setUserToUnfollow(user);
         } else {
-            handleFollow(user.id, user.isFollowing)
+            handleFollow(user.id, user.isFollowing);
         }
-    }
+    };
 
     const handleUnfollowConfirm = () => {
         if (userToUnfollow) {
-            handleFollow(userToUnfollow.id, true)
-            setUserToUnfollow(null)
+            handleFollow(userToUnfollow.id, true);
+            setUserToUnfollow(null);
         }
-    }
+    };
 
-  
     const DateChip = ({ label, date, onClear }: { label: string, date: Date, onClear: () => void }) => (
         <div className="flex items-center bg-[#333] pl-3 pr-2 py-1 rounded-lg mr-2 shrink-0 animate-in fade-in zoom-in duration-200">
             <span className="text-white text-[13px] font-semibold whitespace-nowrap">
@@ -166,8 +164,8 @@ const Search = () => {
                 onClose={() => setUserToUnfollow(null)}
                 onConfirm={handleUnfollowConfirm}
                 name={userToUnfollow?.name || ''}
-                avatarPath={userToUnfollow?.avatarPath || null}>
-            </UnfollowModal>
+                avatarPath={userToUnfollow?.avatarPath || null}
+            />
 
             <div className="max-w-2xl mx-auto">
                 <div className="flex justify-center items-center mb-6">
@@ -183,7 +181,6 @@ const Search = () => {
             <div className="mx-auto max-w-2xl overflow-y-auto scrollbar-hide bg-[#181818] rounded-3xl border border-[#333] w-full flex-1 p-4 min-h-[80vh]">
                 
                 <div className="relative mb-6">
-                    
                     <div 
                         ref={inputContainerRef}
                         className="w-full bg-black rounded-2xl border border-transparent focus-within:border-[#333] transition-all flex items-center px-4 py-2 relative min-h-[50px]"
@@ -205,6 +202,18 @@ const Search = () => {
                             className="bg-transparent text-white placeholder-[#616161] outline-none flex-1 min-w-[50px] py-1 text-[15px]"
                         />
 
+                        {query && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setQuery('');
+                                }}
+                                className="text-[#616161] hover:text-white p-1 rounded-full transition-colors"
+                            >
+                                <X size={16} />
+                            </button>
+                        )}
+
                         <div ref={filterRef} className="ml-2 relative">
                             <div 
                                 onClick={(e) => {
@@ -221,7 +230,6 @@ const Search = () => {
                                 <SlidersHorizontal size={20} />
                             </div>
 
-                           
                             {isOpenFilterModal && (
                                 <SearchFilter 
                                     onStartDateClick={() => {
@@ -237,16 +245,13 @@ const Search = () => {
                         </div>
                     </div>
 
-                
                     {openDatePicker && (
                         <div className="absolute top-16 right-0 z-50 animate-in fade-in zoom-in duration-200">
-                        
                             <div className="fixed inset-0 z-40" onClick={() => setOpenDatePicker(null)}></div>
-                            
                             <div className="relative z-50">
                                 <DatePicker
                                     selected={openDatePicker === 'start' ? startDate : endDate}
-                                    onChange={(date:Date | null) => {
+                                    onChange={(date: Date | null) => {
                                         if (openDatePicker === 'start') setStartDate(date);
                                         else setEndDate(date);
                                         setOpenDatePicker(null);
@@ -264,7 +269,11 @@ const Search = () => {
                 </h2>
                 
                 <div className="flex flex-col gap-2 scrollbar-hide flex-1 overflow-y-auto">
-                    {loading && <div className="text-[#616161] text-center py-4">Завантаження...</div>}
+                    {loading && (
+                        <div className="flex items-center justify-center py-16">
+                            <Loader size={32} className="animate-spin text-white"/>
+                        </div>
+                    )}
 
                     {!loading && results.length === 0 && (
                         <div className="text-[#616161] text-center py-10 opacity-50">
@@ -272,13 +281,13 @@ const Search = () => {
                         </div>
                     )}
 
-                    {results.map(user => (
+                    {!loading && results.map(user => (
                         <div key={user.id} className="flex items-start py-3 border-b border-[#333] last:border-0">
                             <div 
                                 onClick={() => navigate(`/profile/${user.id}`)}
                                 className="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden shrink-0 mr-3 cursor-pointer"
                             >
-                                <Avatar src={user.avatarPath} alt={user.name}></Avatar>
+                                <Avatar src={user.avatarPath} alt={user.name} />
                             </div>
                             
                             <div className="flex-1 min-w-0 mr-3">
@@ -301,13 +310,14 @@ const Search = () => {
                                         </p>
                                     )}
                                     <div className="mt-2 text-[14px] text-[#616161]">
-                                        {user._count.followedBy.toLocaleString()} читачів
+                                        {user._count?.followedBy?.toLocaleString() ?? 0} читачів
                                     </div>
                                 </div>
                             </div>
                             
                             {user.id !== currentUserId && (
-                                <button onClick={() => handleFollowClick(user)}
+                                <button
+                                    onClick={() => handleFollowClick(user)}
                                     className={`px-6 py-1.5 rounded-[10px] font-bold text-[14px] transition-all border shrink-0 mt-1
                                     ${user.isFollowing 
                                         ? 'bg-transparent text-[#616161] border-[#3a3a3a] hover:bg-[#222]'
@@ -322,6 +332,7 @@ const Search = () => {
                 </div>
             </div>
         </div>
-    )
-}
+    );
+};
+
 export default Search;

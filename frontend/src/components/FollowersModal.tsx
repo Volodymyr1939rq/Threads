@@ -4,7 +4,7 @@ import Avatar from "./Avatar";
 import UserHoverCard from "./UserHoverCard";
 import { useQueryClient } from "@tanstack/react-query";
 
-const API_URL = 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL
 
 interface FollowersProps {
     userId: string;

@@ -1,8 +1,6 @@
 
 import { IoPersonCircle } from "react-icons/io5";
 
-
-
 interface AvatarProps{
     src:string | null | undefined;
     className?:string;

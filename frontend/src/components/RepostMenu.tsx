@@ -18,7 +18,7 @@ interface RepostMenuProps {
 
 const RepostMenu = ({ postId, isReposted, onClose, updateState, currentCount,type='post' }: RepostMenuProps) => {
   const queryClient = useQueryClient();
-  const API_URL = "http://localhost:3000";
+  const API_URL = import.meta.env.VITE_API_URL
 
   const handleRepostAction = async (e: React.MouseEvent) => {
     e.stopPropagation();

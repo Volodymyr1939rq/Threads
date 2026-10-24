@@ -2,11 +2,12 @@ import { Module } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { DatabaseService } from 'src/database/database.service';
-import { FileUploadModule } from 'src/file-upload/file-upload.module';
+import { StorageService } from 'storage.service';
+
 @Module({
-  imports:[FileUploadModule],
+  imports:[],
   controllers: [UserController],
-  providers: [UserService,DatabaseService],
+  providers: [UserService,DatabaseService,StorageService],
   exports:[UserService]
 })
 export class UserModule {}

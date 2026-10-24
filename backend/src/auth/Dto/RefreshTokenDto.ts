@@ -1,3 +1,3 @@
 export class refreshTokenDto{
-    refreshToken:string
+    refreshToken!:string
 }

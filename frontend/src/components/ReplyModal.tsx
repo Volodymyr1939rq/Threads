@@ -7,7 +7,6 @@ import Avatar from "./Avatar";
 import { AlignLeft, FileText, ImageIcon, MapPin, Smile } from "lucide-react";
 import { MdGif } from "react-icons/md";
 
-// ❌ ТУТ НЕ МАЄ БУТИ usePostContext
 
 interface ReplyModalsProps {
     onClose: () => void;
@@ -67,17 +66,13 @@ const ReplyModal = ({ isOpen, onClose, onSubmit, replyingToPost }: ReplyModalsPr
         setChain(newChain)
     }
 
-    // 👇 ПРОСТИЙ HANDLER БЕЗ ЛОГІКИ
     const handleSubmit = async () => {
         const validChain = chain.filter(t => t.trim().length > 0)
         if (validChain.length === 0) return
         
         setIsSubmitting(true)
         try {
-            // Викликаємо функцію з Context. Вона все зробить сама.
             await onSubmit(validChain) 
-            
-            // Просто чистимо поля
             setChain([''])
             onClose()
 
@@ -154,7 +149,7 @@ const ReplyModal = ({ isOpen, onClose, onSubmit, replyingToPost }: ReplyModalsPr
                                     rows={1}
                                     autoFocus={index === chain.length - 1 && chain.length > 1}
                                 />
-                                {/* Кнопки форматування (залишив як є) */}
+                        
                                 <div className="flex items-center gap-4 text-[#777]">
                                     <button className='hover:text-white transition'><AlignLeft size={18} /></button>
                                     <button className="hover:text-white transition"><FileText size={18} /></button>

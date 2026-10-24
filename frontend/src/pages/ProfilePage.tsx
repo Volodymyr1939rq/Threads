@@ -12,7 +12,8 @@ import ThreadsModal from "../components/CreateThreadModal";
 import FollowersModal from "../components/FollowersModal";
 import { useNavigate, useParams } from "react-router-dom";
 import { HiUserAdd } from "react-icons/hi";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Loader from "../components/Loader";
 
 interface UserProfileData {
   id: string;
@@ -27,7 +28,7 @@ interface UserProfileData {
   isFollowing?: boolean;
 }
 
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL;
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState("threads");
@@ -40,18 +41,18 @@ const Profile = () => {
 
   const { user: globalUser } = useCurrentUser();
   const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
   const [expandedImage, setExpandedImage] = useState(false);
   const [openFollowersModal, setOpenFollowersModal] = useState(false);
   const navigate = useNavigate();
   const { id } = useParams();
+  const queryClient = useQueryClient();
 
   const replies: any[] = [];
   const media: any[] = [];
-  
-  
+
   const isOwnProfile = !id || id === globalUser?.id;
   const targetUserId = id || globalUser?.id;
-
 
   const fetchUserPosts = async () => {
     const token = Cookies.get("token");
@@ -69,17 +70,16 @@ const Profile = () => {
     return res.json();
   };
 
-  const { data: rawPost } = useQuery({
+  const { data: rawPost, isLoading: isPostsLoading } = useQuery({
     queryKey: ["posts", targetUserId],
     queryFn: fetchUserPosts,
     enabled: !!targetUserId,
   });
   const userPost = Array.isArray(rawPost) ? rawPost : rawPost?.data || [];
 
-  
   const fetchUserReposts = async () => {
     const token = Cookies.get("token");
-  
+
     const res = await fetch(`${API_URL}/post/${targetUserId}/reposts`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -93,27 +93,23 @@ const Profile = () => {
   const { data: repostsData, isLoading: isRepostsLoading } = useQuery({
     queryKey: ["reposts", targetUserId],
     queryFn: fetchUserReposts,
-    enabled: !!targetUserId && activeTab === "repost", 
+    enabled: !!targetUserId && activeTab === "repost",
   });
 
   const userReposts = Array.isArray(repostsData) ? repostsData : [];
-
-  
 
   useEffect(() => {
     if (isOwnProfile && globalUser) {
       setUserProfile((prev) => {
         if (!prev) return null;
 
-        const updatedProfile: UserProfileData = {
+        return {
           ...prev,
           name: globalUser.name,
           bio: globalUser.bio,
-
           avatar: globalUser.avatar || undefined,
           avatarPath: globalUser.avatar || undefined,
         };
-        return updatedProfile;
       });
     }
   }, [globalUser, isOwnProfile]);
@@ -122,6 +118,7 @@ const Profile = () => {
     if (!targetUserId) return;
 
     const handleProfileUser = async () => {
+      setIsProfileLoading(true);
       try {
         const token = Cookies.get("token");
 
@@ -134,6 +131,8 @@ const Profile = () => {
         }
       } catch (error) {
         console.error("Error fetching profile", error);
+      } finally {
+        setIsProfileLoading(false);
       }
     };
     handleProfileUser();
@@ -188,12 +187,18 @@ const Profile = () => {
     setShowRightArrow(scrollLeft + clientWidth < scrollWidth - 1);
   };
 
-  if (!userProfile)
+  if (isProfileLoading || !userProfile) {
     return (
-      <div className="bg-black h-screen text-white flex items-center justify-center">
-        Завантаження...
+      <div className="bg-black flex flex-col text-white relative h-screen w-full overflow-hidden font-sans">
+        <div className="shrink-0 h-10 flex items-center justify-center px-4 z-50 bg-transparent py-8">
+          <span className="text-white font-semibold text-[17px]">Профіль</span>
+        </div>
+        <div className="mx-auto max-w-2xl bg-[#181818] rounded-t-3xl border-x border-t border-b-0 border-[#333] w-full flex-1 flex items-center justify-center">
+          <Loader size={36} className="animate-spin text-white"/>
+        </div>
       </div>
     );
+  }
 
   const avatarUrl =
     userProfile?.avatarPath || userProfile?.avatar || "/person.png";
@@ -201,7 +206,9 @@ const Profile = () => {
   const isPostsDone = userPost.length > 0;
   const isBioDone = !!(userProfile?.bio && userProfile.bio.length > 0);
   const isAvatarDone = Boolean(userProfile?.avatarPath || userProfile?.avatar);
-  const isFollowingDone = false;
+  const isFollowingDone = Boolean(
+    userProfile?._count?.following && userProfile._count.following > 0
+  );
 
   return (
     <div className="bg-black flex flex-col text-white relative h-screen w-full overflow-hidden font-sans">
@@ -212,9 +219,9 @@ const Profile = () => {
       </div>
 
       <style>{`
-                .scrollbar-hide::-webkit-scrollbar { display: none; }
-                .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-            `}</style>
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
 
       <div className="mx-auto max-w-2xl overflow-y-auto scrollbar-hide bg-[#181818] rounded-t-3xl border-x border-t border-b-0 border-[#333] w-full flex-1">
         <div className="relative w-full mx-auto py-6 flex flex-col ">
@@ -276,11 +283,11 @@ const Profile = () => {
             <button
               onClick={handleFollowToggle}
               className={`w-[calc(100%-48px)] mx-6 mt-6 py-1.5 rounded-xl font-semibold text-[15px] transition duration-200
-                        ${
-                          userProfile.isFollowing
-                            ? "bg-transparent border border-[#3a3a3a] text-white hover:bg-[#2a2a2a]"
-                            : "bg-white text-black hover:bg-neutral-200"
-                        }`}
+                ${
+                  userProfile.isFollowing
+                    ? "bg-transparent border border-[#3a3a3a] text-white hover:bg-[#2a2a2a]"
+                    : "bg-white text-black hover:bg-neutral-200"
+                }`}
             >
               {userProfile.isFollowing ? "Відстежується" : "Стежити"}
             </button>
@@ -290,11 +297,11 @@ const Profile = () => {
             <div
               onClick={() => setActiveTab("threads")}
               className={`flex-1 text-center py-3 cursor-pointer font-medium text-[15px] border-b transition-colors duration-200
-                          ${
-                            activeTab === "threads"
-                              ? "text-white border-white"
-                              : "text-[#616161] border-transparent hover:text-[#a0a0a0]"
-                          }`}
+                ${
+                  activeTab === "threads"
+                    ? "text-white border-white"
+                    : "text-[#616161] border-transparent hover:text-[#a0a0a0]"
+                }`}
             >
               Ланцюжки
             </div>
@@ -352,33 +359,39 @@ const Profile = () => {
 
           {activeTab === "threads" && (
             <div className="pb-20">
-              {(() => {
+              {isPostsLoading ? (
+                <Loader size={32} className="pt-12" />
+              ) : (() => {
                 if (!isOwnProfile) {
-                    return (
-                        <div className="flex flex-col">
-                        {userPost.map((post: any) => (
-                            <Post
-                            key={post.id}
-                            id={post.id}
-                            title={post.title}
-                            description={post.description}
-                            image={post.image}
-                            autor={post.autor}
-                            createdAt={post.createdAt}
-                            isLiked={post.isLiked}
-                            isFollowing={post.isFollowing}
-                            replyName={post.replyName}
-                            repostCount={post._count?.reposts || 0}
-                            stats={{
-                                likes: post._count?.reactions || 0,
-                                dislike: 0,
-                                comments: post._count?.comment || 0,
-                                reposts:post._count?.reposts || 0
-                            }}
-                            />
-                        ))}
-                        </div>
-                    );
+                  return userPost.length > 0 ? (
+                    <div className="flex flex-col">
+                      {userPost.map((post: any) => (
+                        <Post
+                          key={post.id}
+                          id={post.id}
+                          title={post.title}
+                          description={post.description}
+                          image={post.image}
+                          autor={post.autor}
+                          createdAt={post.createdAt}
+                          isLiked={post.isLiked}
+                          isFollowing={post.autor?.isFollowing ?? post.isFollowing}
+                          replyName={post.replyName}
+                          repostCount={post.stats?.reposts ?? post._count?.reposts ?? 0}
+                          stats={{
+                            likes: post.stats?.likes ?? post._count?.reactions ?? 0,
+                            dislike: 0,
+                            comments: post.stats?.comments ?? post._count?.comments ?? 0,
+                            reposts: post.stats?.reposts ?? post._count?.reposts ?? 0,
+                          }}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center pt-16 text-[#616161] text-[15px]">
+                      Ще немає публікацій.
+                    </div>
+                  );
                 }
 
                 const tasks = [
@@ -430,11 +443,11 @@ const Profile = () => {
                           <div className="min-w-[205px] w-[205px] bg-[#1E1E1E] p-4 rounded-2xl flex flex-col items-center text-center shrink-0">
                             <div
                               className={`w-14 h-14 rounded-full border flex items-center justify-center mb-2 shrink-0 transition-colors duration-200
-                                                    ${
-                                                      isPostsDone
-                                                        ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
-                                                        : "bg-black border-white/10 text-white"
-                                                    }`}
+                                ${
+                                  isPostsDone
+                                    ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
+                                    : "bg-black border-white/10 text-white"
+                                }`}
                             >
                               {isPostsDone ? (
                                 <FiCheck size={28} />
@@ -452,11 +465,11 @@ const Profile = () => {
                               onClick={() => setCreateThreadModal(true)}
                               disabled={isPostsDone}
                               className={`w-full py-1.5 font-bold rounded-lg text-sm mt-auto transition-all duration-200 border
-                                                                  ${
-                                                                    isPostsDone
-                                                                      ? "bg-transparent border-[#333] text-[#616161] cursor-default"
-                                                                      : "bg-white border-white text-black hover:bg-neutral-200"
-                                                                  }`}
+                                ${
+                                  isPostsDone
+                                    ? "bg-transparent border-[#333] text-[#616161] cursor-default"
+                                    : "bg-white border-white text-black hover:bg-neutral-200"
+                                }`}
                             >
                               {isPostsDone ? "Виконано" : "Створити"}
                             </button>
@@ -465,11 +478,11 @@ const Profile = () => {
                           <div className="min-w-[205px] w-[205px] bg-[#1E1E1E] p-4 rounded-2xl flex flex-col items-center text-center shrink-0">
                             <div
                               className={`w-14 h-14 rounded-full border flex items-center justify-center mb-2 shrink-0 transition-colors duration-200
-                                                    ${
-                                                      isFollowingDone
-                                                        ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
-                                                        : "bg-black border-white/10 text-white"
-                                                    }`}
+                                ${
+                                  isFollowingDone
+                                    ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
+                                    : "bg-black border-white/10 text-white"
+                                }`}
                             >
                               {isFollowingDone ? (
                                 <FiCheck size={28} />
@@ -487,11 +500,11 @@ const Profile = () => {
                               onClick={() => navigate("/search")}
                               disabled={isFollowingDone}
                               className={`w-full py-1.5 font-bold rounded-lg text-sm mt-auto transition-all duration-200 border
-                                                                  ${
-                                                                    isFollowingDone
-                                                                      ? "bg-transparent border-[#333] text-[#616161] cursor-default"
-                                                                      : "bg-white border-white text-black hover:bg-neutral-200"
-                                                                  }`}
+                                ${
+                                  isFollowingDone
+                                    ? "bg-transparent border-[#333] text-[#616161] cursor-default"
+                                    : "bg-white border-white text-black hover:bg-neutral-200"
+                                }`}
                             >
                               {isFollowingDone ? "Виконано" : "Стежити"}
                             </button>
@@ -500,11 +513,11 @@ const Profile = () => {
                           <div className="min-w-[205px] w-[205px] bg-[#1E1E1E] p-4 rounded-2xl flex flex-col items-center text-center shrink-0">
                             <div
                               className={`w-14 h-14 rounded-full border flex items-center justify-center mb-2 shrink-0 transition-colors duration-200
-                                                    ${
-                                                      isBioDone
-                                                        ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
-                                                        : "bg-black border-white/10 text-white"
-                                                    }`}
+                                ${
+                                  isBioDone
+                                    ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
+                                    : "bg-black border-white/10 text-white"
+                                }`}
                             >
                               {isBioDone ? (
                                 <FiCheck size={28} />
@@ -524,11 +537,11 @@ const Profile = () => {
                               }
                               disabled={isBioDone}
                               className={`w-full py-1.5 font-bold rounded-lg text-sm mt-auto transition-all duration-200 border
-                                                                  ${
-                                                                    isBioDone
-                                                                      ? "bg-transparent border-[#333] text-[#616161] cursor-default"
-                                                                      : "bg-white border-white text-black hover:bg-neutral-200"
-                                                                  }`}
+                                ${
+                                  isBioDone
+                                    ? "bg-transparent border-[#333] text-[#616161] cursor-default"
+                                    : "bg-white border-white text-black hover:bg-neutral-200"
+                                }`}
                             >
                               {isBioDone ? "Виконано" : "Додати"}
                             </button>
@@ -537,11 +550,11 @@ const Profile = () => {
                           <div className="min-w-[205px] w-[205px] bg-[#1E1E1E] p-4 rounded-2xl flex flex-col items-center text-center shrink-0">
                             <div
                               className={`w-14 h-14 rounded-full border flex items-center justify-center mb-2 shrink-0 transition-colors duration-200
-                                                    ${
-                                                      isAvatarDone
-                                                        ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
-                                                        : "bg-black border-white/10 text-white"
-                                                    }`}
+                                ${
+                                  isAvatarDone
+                                    ? "bg-[#1a1a1a] border-[#333] text-[#616161]"
+                                    : "bg-black border-white/10 text-white"
+                                }`}
                             >
                               {isAvatarDone ? (
                                 <FiCheck size={28} />
@@ -561,11 +574,11 @@ const Profile = () => {
                               }
                               disabled={isAvatarDone}
                               className={`w-full py-1.5 font-bold rounded-lg text-sm mt-auto transition-all duration-200 border
-                                                                  ${
-                                                                    isAvatarDone
-                                                                      ? "bg-transparent border-[#333] text-[#616161] cursor-default"
-                                                                      : "bg-white border-white text-black hover:bg-neutral-200"
-                                                                  }`}
+                                ${
+                                  isAvatarDone
+                                    ? "bg-transparent border-[#333] text-[#616161] cursor-default"
+                                    : "bg-white border-white text-black hover:bg-neutral-200"
+                                }`}
                             >
                               {isAvatarDone ? "Виконано" : "Додати"}
                             </button>
@@ -586,13 +599,14 @@ const Profile = () => {
                             autor={post.autor}
                             createdAt={post.createdAt}
                             isLiked={post.isLiked}
-                            isFollowing={post.isFollowing}
+                            isFollowing={post.autor?.isFollowing ?? post.isFollowing}
                             replyName={post.replyName}
+                            repostCount={post.stats?.reposts ?? post._count?.reposts ?? 0}
                             stats={{
-                              likes: post._count?.reactions || 0,
+                              likes: post.stats?.likes ?? post._count?.reactions ?? 0,
                               dislike: 0,
-                              comments: post._count?.comment || 0,
-                              reposts:post._count?.reposts || 0
+                              comments: post.stats?.comments ?? post._count?.comments ?? 0,
+                              reposts: post.stats?.reposts ?? post._count?.reposts ?? 0,
                             }}
                           />
                         ))}
@@ -603,6 +617,7 @@ const Profile = () => {
               })()}
             </div>
           )}
+
           {activeTab === "replies" && (
             <div className="grow flex items-center justify-center pt-20">
               {replies.length > 0 ? (
@@ -614,45 +629,44 @@ const Profile = () => {
               )}
             </div>
           )}
+
           {activeTab === "media" && (
             <div className="grow flex items-center justify-center pt-20">
               {media.length > 0 ? (
                 <div>Медіа</div>
               ) : (
                 <div className="text-[#616161] text-[15px]">
-                  Ще немає відповідей.
+                  Ще немає медіафайлів.
                 </div>
               )}
             </div>
           )}
-          
+
           {activeTab === "repost" && (
             <div className="pb-20">
               {isRepostsLoading ? (
-                <div className="flex justify-center pt-20 text-[#616161]">
-                  Завантаження...
-                </div>
+                <Loader size={32} className="pt-12" />
               ) : userReposts.length > 0 ? (
                 <div className="flex flex-col">
                   {userReposts.map((post: any) => (
                     <Post
                       key={post.repostId}
-                      id={post.id} 
+                      id={post.id}
                       title={post.title}
                       description={post.description}
                       image={post.image}
-                      autor={post.autor} 
-                      createdAt={post.createdAt} 
+                      autor={post.autor}
+                      createdAt={post.createdAt}
                       isLiked={post.isLiked}
                       isFollowing={post.autor?.isFollowing}
-                      isRepostByMe={post.isRepostedByMe} 
+                      isRepostByMe={post.isRepostedByMe}
                       replyName={post.replyName}
                       repostCount={post.stats?.reposts || 0}
                       stats={{
                         likes: post.stats?.likes || 0,
                         dislike: 0,
                         comments: post.stats?.comments || 0,
-                        reposts: post.stats?.reposts || 0
+                        reposts: post.stats?.reposts || 0,
                       }}
                     />
                   ))}
@@ -666,9 +680,9 @@ const Profile = () => {
               )}
             </div>
           )}
-        
         </div>
       </div>
+
       {openFollowersModal && userProfile && (
         <FollowersModal
           userId={userProfile.id}
@@ -679,26 +693,27 @@ const Profile = () => {
             followers: userProfile._count?.followedBy || 0,
             following: userProfile._count?.following || 0,
           }}
-        ></FollowersModal>
+        />
       )}
+
       {createThreadModal && (
         <ThreadsModal
           onClose={() => setCreateThreadModal(false)}
           onPostCreated={() => {
-            if (isOwnProfile) {
-              window.location.reload();
-            }
+            queryClient.invalidateQueries({ queryKey: ["posts", targetUserId] });
           }}
-        ></ThreadsModal>
+        />
       )}
+
       {editProfileModal && isOwnProfile && (
         <EditProfilModal
           isOpen={true}
           onClose={() => {
             setEditProfileModal(false);
           }}
-        ></EditProfilModal>
+        />
       )}
+
       {expandedImage && (
         <div
           className="fixed inset-0 z-100 flex items-center justify-center bg-black/70 backdrop-blur-md animate-in fade-in duration-200"

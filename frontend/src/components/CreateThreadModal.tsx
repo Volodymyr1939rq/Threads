@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import Cookies from "js-cookie";
 import { useCurrentUser } from '../context/UserContext'; 
 import Avatar from './Avatar'; 
-
+const API_URL=import.meta.env.VITE_API_URL
 interface threadsModalProps {
     onClose: () => void;
     onPostCreated: () => void;
@@ -79,7 +79,7 @@ export default function ThreadsModal({ onClose, onPostCreated, variant = 'defaul
                 if (thread.file) {
                     formData.append('image', thread.file);
                 }
-                const response = await fetch('http://localhost:3000/post', {
+                const response = await fetch(`${API_URL}/post`, {
                     method: 'POST',
                     body: formData,
                     headers: { 'Authorization': `Bearer ${Cookies.get('token')}` }

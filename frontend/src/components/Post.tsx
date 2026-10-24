@@ -82,7 +82,7 @@ const Post = ({
   isRepost = false,
   replyName,
 }: PostProps) => {
-  const API_URL = "http://localhost:3000";
+  const API_URL = import.meta.env.VITE_API_URL
   const { user } = useCurrentUser();
   const isMe = user?.id === autor.id;
   const serverCommentsCount = propRepliesCount ?? stats?.comments ?? 0;
@@ -259,7 +259,6 @@ const Post = ({
 
   if (postIsDeleted) return null;
 
-  // ===== ВІДОБРАЖЕННЯ ДЛЯ ОКРЕМОЇ СТОРІНКИ ПОСТА (Main Post) =====
   if (isMainPost) {
     return (
       <div className="w-full px-4 py-4 cursor-default">
@@ -338,7 +337,6 @@ const Post = ({
           </div>
         )}
 
-        {/* КНОПКИ ДІЙ (Main Post) */}
         <div className="flex items-center gap-6 -ml-2 mt-2 pt-2 border-t border-transparent">
           <button
             onClick={(e) => { e.stopPropagation(); handleLike(); }}
@@ -413,7 +411,6 @@ const Post = ({
     );
   }
 
-  // ===== ВІДОБРАЖЕННЯ ДЛЯ СТРІЧКИ (Feed Item) =====
   return (
     <div
       onClick={handlePostClick}
@@ -498,7 +495,6 @@ const Post = ({
             </div>
           )}
 
-          {/* КНОПКИ ДІЙ (Feed Item) */}
           <div className="flex items-center gap-6 -ml-2 mt-2.5">
             <button
               onClick={(e) => { e.stopPropagation(); handleLike(); }}

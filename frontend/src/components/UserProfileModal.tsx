@@ -37,7 +37,7 @@ const UserProfileModal = ({ userId, onClose, onFollowStatus, isHover = false }: 
     const [isFollowing, setIsFollowing] = useState(false)
     const [followersCount, setFollowersCount] = useState(0)
     const navigate = useNavigate()
-    const API_URL = 'http://localhost:3000'
+    const API_URL = import.meta.env.VITE_API_URL
 
     const token = Cookies.get('token');
     const tokenData = token ? parseJwt(token) : null;
@@ -46,6 +46,7 @@ const UserProfileModal = ({ userId, onClose, onFollowStatus, isHover = false }: 
     const isMyProfile = currentUserId === userId;
 
     useEffect(() => {
+        let isMounted=true
         const fetchUser = async () => {
             setLoading(true); 
             try {
@@ -55,20 +56,22 @@ const UserProfileModal = ({ userId, onClose, onFollowStatus, isHover = false }: 
                 })
                 if (res.ok) {
                     const data = await res.json()
-                    setUser(data)
-                    setIsFollowing(data.isFollowing)
-                    setFollowersCount(data._count?.followedBy || 0)
+                    if(isMounted){
+                        setUser(data)
+                        setIsFollowing(data.isFollowing)
+                        setFollowersCount(data._count?.followedBy || 0)
+                    }
                 }
             } catch (error) {
                 console.error(error)
             } finally {
-                setLoading(false)
+                if(isMounted){
+                    setLoading(false)
+                }
             }
-
         }
-
         fetchUser()
-
+        return ()=>{isMounted=false}
     }, [userId, token]) 
 
     const handleFollowToggle = async (e: React.MouseEvent) => {

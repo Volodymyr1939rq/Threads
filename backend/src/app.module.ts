@@ -8,10 +8,11 @@ import { AuthModule } from './auth/auth.module';
 import { CommentModule } from './comment/comment.module';
 import { ChatModule } from './chat/chat.module';
 import { ConfigModule } from '@nestjs/config';
+import { StorageService } from 'storage.service';
 
 
 @Module({
-  providers: [AppService],
+  providers: [AppService,StorageService],
   controllers: [AppController],
   imports: [DatabaseModule, UserModule, PostModule, AuthModule, CommentModule, ChatModule,ConfigModule.forRoot({isGlobal:true})],
   

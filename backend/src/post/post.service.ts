@@ -1,22 +1,23 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import { postDto } from './Dto/PostDto';
-import { FileUploadService } from 'src/file-upload/file-upload.service';
 import { paginationDto } from './Dto/paginationDto';
-import { title } from 'process';
-
+import { StorageService } from 'storage.service';
+import "multer"
 @Injectable()
 export class PostService {
     constructor(
         private readonly databaseService: DatabaseService,
-        private readonly fileuploadService: FileUploadService
+        private readonly storageService: StorageService
     ) { }
 
-    async createPost(dto: postDto, userId: string, file?: Express.Multer.File) {
-        let imagePath: string | null = null;
-        if (file) {
-            const uploadImage = await this.fileuploadService.uploadFile(file, "posts");
-            imagePath = uploadImage.publicUrl;
+    async createPost(dto: postDto, userId: string, file?:Express.Multer.File) {
+        let cloudFlareImageUrl:string | null=null
+        if(file){
+            const uploadFile=await this.storageService.uploadFile([file])
+            if(uploadFile && uploadFile.length>0){
+                cloudFlareImageUrl=uploadFile[0]
+            }
         }
         try {
             const { autorId, ...postData } = dto as any;
@@ -24,7 +25,7 @@ export class PostService {
                 data: {
                     ...postData,
                     autorId: userId,
-                    image: imagePath
+                    image: cloudFlareImageUrl
                 }
             });
         } catch (error) {
@@ -287,7 +288,9 @@ export class PostService {
 
         if (!post) throw new NotFoundException("Post not found");
         if (userId !== post.autorId) throw new ForbiddenException("You are not the author of this post");
-
+        if(post.image){
+            await this.storageService.deleteFile(post.image)
+        }
         await this.databaseService.post.delete({ where: { id } });
 
         return {
@@ -302,7 +305,16 @@ export class PostService {
             const page = query.page || 1;
             const limit = query.limit || 10;
             const skip = (page - 1) * limit;
-
+            if(!currentUserId){
+                return {
+                    data:[],
+                    meta:{
+                        total:0,
+                        page,
+                        lastPage:0
+                    }
+                }
+            }
             const follows = await this.databaseService.follows.findMany({
                 where: {
                     followerId: currentUserId
@@ -311,7 +323,8 @@ export class PostService {
                     followingId: true
                 }
             })
-            const autorIds = follows.map(f => f.followingId)
+            const autorIds = follows.map(f => f.followingId).
+            filter((id):id is string=>Boolean(id))
             autorIds.push(currentUserId)
 
             const whereConditional = {
@@ -639,7 +652,7 @@ export class PostService {
             const isRepost = potentialMyPost.title === null || potentialMyPost.originalPostId || potentialMyPost.originalCommentId;
             
             if (isRepost) {
-                console.log('🗑 DELETING MY OWN REPOST DIRECTLY.');
+               
                 await this.databaseService.post.delete({
                     where: { id: incomingId }
                 });

@@ -2,16 +2,14 @@ import { ConflictException, Injectable, InternalServerErrorException, NotFoundEx
 import { DatabaseService } from 'src/database/database.service';
 import { userDto } from 'src/user/dto/UserDto';
 import * as bcrypt from 'bcrypt';
-import { FileUploadService } from 'src/file-upload/file-upload.service';
-import * as path from 'path';
-import * as fs from 'fs';
 import { Usersearchdto } from './dto/UserSearchDto';
+import { StorageService } from 'storage.service';
 
 
 @Injectable()
 export class UserService {
      constructor(private readonly databaseService:DatabaseService,
-        private readonly fileUploadService:FileUploadService
+        private readonly storageService:StorageService
      ){}
 
      async updateUserProfile(userId:string,dto:{name?:string,bio?:string}){
@@ -30,11 +28,18 @@ export class UserService {
         })
      }
      async uploadAvatar(userId:string,file:Express.Multer.File){
-        const uploadResult=await this.fileUploadService.uploadFile(file,'avatars')
+        let cloudFlareImageUrl:string | null=null
+        if(file){
+            const uploadedUrl=await this.storageService.uploadFile([file])
+            if(uploadedUrl && uploadedUrl.length>0){
+                cloudFlareImageUrl=uploadedUrl[0]
+            }
+        }
+        
 
         const user = await this.databaseService.user.update({
             where:{id:userId},
-            data:{avatarPath:uploadResult.publicUrl}
+            data:{avatarPath:cloudFlareImageUrl}
         })
         const {password,hashedRefreshTokens,...result}=user
         return result;
@@ -248,7 +253,8 @@ export class UserService {
                  ])
                 return `followed`
             } catch (error) {
-                throw new InternalServerErrorException(error.message)
+                console.error('Помилка створення підписки',error)
+                throw new InternalServerErrorException("Помилка при створенні підписки")
             }
 
         }
@@ -366,21 +372,15 @@ export class UserService {
                 throw new NotFoundException('User not found')
             }
             if(user.avatarPath){
-                const filePath=path.join(process.cwd(),'uploads',user.avatarPath)
-                try {
-                    if(fs.existsSync(filePath)){
-                        fs.unlinkSync(filePath)
-                    }
-                } catch (error) {
-                    console.error('Помилка при видаленні файлу',error)
-                }
+                await this.storageService.deleteFile(user.avatarPath)
             }
-            return this.databaseService.user.update({
+            const updatedUser=await this.databaseService.user.update({
                where:{id:userId},
                data:{
                 avatarPath:null
                }
-            })
+            });
+            const {password,hashedRefreshTokens,...result}=updatedUser
         }
     }   
 

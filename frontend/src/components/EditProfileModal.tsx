@@ -25,7 +25,7 @@ const EditProfilModal=({isOpen,onClose}:openEditModal)=>{
     const {user,refreshUser}=useCurrentUser()
     const [isAvatarMenuOpen,setIsAvatarMenuOpen]=useState(false)
     const [deleteAvatar,setDeleteAvatar]=useState(false)
-    const API_URL='http://localhost:3000'
+    const API_URL=import.meta.env.VITE_API_URL
 
     useEffect(()=>{
         if(isOpen && user) {
