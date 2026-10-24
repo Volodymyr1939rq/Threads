@@ -13,8 +13,10 @@ async function bootstrap() {
   }));
    app.enableCors({
       origin:[
-        'https://threads-clone-three-gamma.vercel.app',
         'http://localhost:5173',
+        'http://localhost:3000',
+        'https://threads-clone-three-gamma.vercel.app',
+         /\.vercel\.app$/,
       ],
       credentials:true,
       methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
