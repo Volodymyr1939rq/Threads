@@ -1,7 +1,7 @@
 
 import Cookies from 'js-cookie';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-const API_URL='http://localhost:3000'
+const API_URL=import.meta.env.VITE_API_URL
 
 interface User {
     id:string;

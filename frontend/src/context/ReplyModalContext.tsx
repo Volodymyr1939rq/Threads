@@ -3,7 +3,7 @@ import Cookies from 'js-cookie';
 import ReplyModal from '../components/ReplyModal';
 import { usePostContext } from "../context/PostContext";
 
-const API_URL = 'http://localhost:3000'; // Перевір, чи тут правильний порт
+const API_URL =import.meta.env.VITE_API_URL; 
 
 interface PostData {
     id: string;
@@ -30,7 +30,6 @@ export const ReplyModalProvider = ({ children }: { children: ReactNode }) => {
     const [replyingToPost, setReplyingToPost] = useState<PostData | null>(null)
     const onSuccessRef = useRef<(() => void) | null>(null)
     
-    // 👇 Беремо функцію для зміни цифр
     const { incrementComments } = usePostContext()
 
     const openReplyModal = (post: PostData, onSuccess?: () => void) => {
@@ -56,11 +55,8 @@ export const ReplyModalProvider = ({ children }: { children: ReactNode }) => {
         const token = Cookies.get('token')
         if (!token) return
 
-        // 1. Визначаємо правильні ID
         const rootPostId = replyingToPost.postId || replyingToPost.id
        
-        // 🔥 ОПТИМІСТИЧНЕ ОНОВЛЕННЯ (МИТТЄВЕ +1)
-        // Робимо це ДО запиту. Тоді ти побачиш +1, навіть якщо сервер тупить.
         incrementComments(rootPostId); 
         if (replyingToPost.postId) {
             incrementComments(replyingToPost.id);
@@ -73,11 +69,10 @@ export const ReplyModalProvider = ({ children }: { children: ReactNode }) => {
                 if (!text.trim()) continue
                  console.log("🕵️‍♂️ DEBUG ID:", {
             whatIsIt: replyingToPost.postId ? "Це Коментар" : "Це Пост",
-            sendingRootId: rootPostId,     // <--- Тут має бути ID Поста
-            sendingParentId: replyingToPost.postId ? replyingToPost.id : undefined // <--- Тут ID коментаря
+            sendingRootId: rootPostId,     
+            sendingParentId: replyingToPost.postId ? replyingToPost.id : undefined 
         });
-                // 👇 Перевір URL (має бути без /create, якщо ти пофіксив бекенд)
-                // Якщо на бекенді @Post('create'), то тут пиши `${API_URL}/comment/create`
+               
                 const response = await fetch(`${API_URL}/comment`, {
                     method: 'POST',
                     headers: {
@@ -92,8 +87,7 @@ export const ReplyModalProvider = ({ children }: { children: ReactNode }) => {
                 })
 
                 if (!response.ok) {
-                    // Якщо сервер впав, можна (опціонально) зробити decrement, 
-                    // але поки не будемо ускладнювати.
+                    
                     throw new Error(`Server Error: ${response.status}`)
                 }
 

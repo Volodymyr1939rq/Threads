@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Cookies from "js-cookie";
+import { useCurrentUser } from "../context/UserContext";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -9,7 +10,7 @@ const Login = () => {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
-
+    const {refreshUser}=useCurrentUser()
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
@@ -39,7 +40,7 @@ const Login = () => {
                 secure: true,
                 sameSite: 'Lax'
             });
-
+            await refreshUser()
             navigate('/');
         } catch (err: any) {
             setError(err.message || 'Помилка авторизації');

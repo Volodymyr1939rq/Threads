@@ -30,12 +30,25 @@ interface UserProfileData {
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+const getUserIdFromJwt=():string | null =>{
+  const token=Cookies.get('token')
+  if(!token){
+    return null
+  }
+  try {
+    const payload=JSON.parse(atob(token.split('.')[1]))
+    return payload.id || payload.sub || payload.userId || null
+  } catch (error) {
+    return null
+  }
+}
+
 const Profile = () => {
   const [activeTab, setActiveTab] = useState("threads");
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
-
+  const [isFollowLoading,setIsFollowLoading]=useState(false)
   const [editProfileModal, setEditProfileModal] = useState(false);
   const [createThreadModal, setCreateThreadModal] = useState(false);
 
@@ -50,9 +63,9 @@ const Profile = () => {
 
   const replies: any[] = [];
   const media: any[] = [];
-
-  const isOwnProfile = !id || id === globalUser?.id;
-  const targetUserId = id || globalUser?.id;
+  const currentUserId=globalUser?.id || getUserIdFromJwt()
+  const isOwnProfile = !id || id === currentUserId;
+  const targetUserId = id || currentUserId;
 
   const fetchUserPosts = async () => {
     const token = Cookies.get("token");
@@ -139,32 +152,39 @@ const Profile = () => {
   }, [targetUserId]);
 
   const handleFollowToggle = async () => {
-    if (!userProfile) return;
+    if (!userProfile || isOwnProfile || isFollowLoading) return;
+    const previousProfile=userProfile
     const isNewFollowing = !userProfile.isFollowing;
+    setIsFollowLoading(true)
+
+    setUserProfile((prev)=>
+      prev ?
+      {
+       ...prev,
+       isFollowing:isNewFollowing,
+       _count:{
+        following:prev._count?.following || 0,
+        followedBy:isNewFollowing 
+        ? (prev._count?.followedBy || 0) + 1
+        : Math.max(0,(prev._count?.followedBy || 0) -1),
+       },
+    }
+    :null
+  )
     try {
       const token = Cookies.get("token");
-      setUserProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              isFollowing: isNewFollowing,
-              _count: {
-                ...prev._count!,
-                followedBy: isNewFollowing
-                  ? prev._count!.followedBy + 1
-                  : prev._count!.followedBy - 1,
-                following: prev._count!.following,
-              },
-            }
-          : null
-      );
-
-      await fetch(`${API_URL}/user/${userProfile.id}/follow`, {
+      const res=await fetch(`${API_URL}/user/${userProfile.id}/follow`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
+      if(!res.ok){
+        throw new Error('Failed to toggle follow')
+      }
     } catch (error) {
       console.error(error);
+      setUserProfile(previousProfile)
+    }finally{
+      setIsFollowLoading(false)
     }
   };
 
@@ -282,6 +302,7 @@ const Profile = () => {
           ) : (
             <button
               onClick={handleFollowToggle}
+              disabled={isFollowLoading}
               className={`w-[calc(100%-48px)] mx-6 mt-6 py-1.5 rounded-xl font-semibold text-[15px] transition duration-200
                 ${
                   userProfile.isFollowing
