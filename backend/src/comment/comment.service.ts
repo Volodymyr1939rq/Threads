@@ -23,8 +23,8 @@ export class CommentService {
                 throw new NotFoundException('Post or targetComment not found')
             }
             targetPostId=parentComment.postId
-            if(!targetPostId){
-                targetPostId=parentComment.id
+            if(!parentTargetId){
+                parentTargetId=parentComment.id
             }
         }else if(parentTargetId){
               const parent=await this.databaseService.comment.findUnique({
