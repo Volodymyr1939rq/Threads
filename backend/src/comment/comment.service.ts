@@ -7,35 +7,44 @@ export class CommentService {
     constructor(private readonly databaseService: DatabaseService) { }
 
     async createComment(dto: commentDto, userId: string) {
-        const post = await this.databaseService.post.findUnique({
+        let targetPostId=dto.postId
+        let parentTargetId=dto.parentId
+        let post = await this.databaseService.post.findUnique({
             where: {
-                id: dto.postId
+                id: targetPostId
             }
         })
         if (!post) {
-            throw new NotFoundException("Post not found")
+            const parentComment=await this.databaseService.comment.findUnique({
+                where:{id:targetPostId}
+            })
+
+            if(!parentComment){
+                throw new NotFoundException('Post or targetComment not found')
+            }
+            targetPostId=parentComment.postId
+            if(!targetPostId){
+                targetPostId=parentComment.id
+            }
+        }else if(parentTargetId){
+              const parent=await this.databaseService.comment.findUnique({
+                where:{id:parentTargetId}
+              })
+              if(!parent){
+                throw new NotFoundException('Parent comment not found')
+              }
         }
 
-        if (dto.parentId) {
-            const parent = await this.databaseService.comment.findUnique({
-                where: {
-                    id: dto.parentId
-                }
-            })
-            if (!parent) {
-                throw new NotFoundException('parent comment not found')
-            }
-        }
         return this.databaseService.comment.create({
             data: {
                 content: dto.content,
                 post: {
-                    connect: { id: dto.postId }
+                    connect: { id: targetPostId }
                 },
                 autor: {
                     connect: { id: userId }
                 },
-                parent: dto.parentId ? { connect: { id: dto.parentId } } : undefined
+                parent: parentTargetId ? { connect: { id: parentTargetId } } : undefined
             },
             include: {
                 autor: true

@@ -42,7 +42,6 @@ const ThreadPage = () => {
         }
     }, [post?.comments, post?.children, post?.type, sortBy]);
 
-    // Параметр showLoader дозволяє оновлювати коментарі без повного скидання сторінки в спінер
     const fetchPost = useCallback(async (showLoader = false) => {
         if (showLoader) setLoading(true);
         try {
