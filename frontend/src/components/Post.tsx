@@ -97,7 +97,7 @@ const Post = ({
   const [showMenu, setShowMenu] = useState(false);
   const navigate = useNavigate();
   const { openReplyModal } = useReplyModal();
-
+  
   useEffect(() => {
     setRepostCount(stats?.reposts || 0);
     setIsReposted(isRepostByMe || false);
@@ -185,7 +185,15 @@ const Post = ({
         avatarPath: autor.avatarPath,
       },
       ...(rootPostId ? { postId: rootPostId } : {}),
-    });
+    },
+    ()=>{
+      queryClient.invalidateQueries({queryKey:['comments',id]})
+      queryClient.invalidateQueries({queryKey:['posts']})
+      if(rootPostId){
+        queryClient.invalidateQueries({queryKey:['post',rootPostId]})
+      }
+    }
+  );
   };
 
   const handlePostClick = () => {
